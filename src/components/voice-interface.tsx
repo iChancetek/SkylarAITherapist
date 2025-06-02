@@ -17,8 +17,6 @@ interface ChatMessage {
   icon?: React.ElementType;
 }
 
-const initialSkylarMessage = "Hi, I’m Skylar. I’m really glad you’re here today. How are you feeling emotionally right now?";
-
 export default function VoiceInterface() {
   const [isListening, setIsListening] = useState(false);
   const [isSkylarSpeaking, setIsSkylarSpeaking] = useState(false);
@@ -41,10 +39,13 @@ export default function VoiceInterface() {
   useEffect(scrollToBottom, [chatHistory]);
 
   const speak = useCallback((text: string, onEndCallback?: () => void) => {
-    if (!speechApiSupported || !window.speechSynthesis) return;
+    if (!speechApiSupported || !window.speechSynthesis) {
+      if (onEndCallback) onEndCallback(); // Ensure callback fires even if speech is not supported
+      return;
+    }
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US"; // Ensure consistent language for TTS
+    utterance.lang = "en-US";
     utterance.onstart = () => setIsSkylarSpeaking(true);
     utterance.onend = () => {
       setIsSkylarSpeaking(false);
@@ -58,7 +59,7 @@ export default function VoiceInterface() {
         description: "Could not play audio response.",
         variant: "destructive",
       });
-       if (onEndCallback) onEndCallback(); // ensure flow continues
+       if (onEndCallback) onEndCallback();
     };
     window.speechSynthesis.speak(utterance);
   }, [speechApiSupported, toast]);
@@ -74,6 +75,7 @@ export default function VoiceInterface() {
           variant: "destructive",
           duration: Infinity,
         });
+        setChatHistory([{ id: `system-no-voice-${Date.now()}`, speaker: "system", text: "Voice interaction is not supported by your browser. This app requires voice.", icon: AlertTriangle }]);
         return;
       }
 
@@ -124,31 +126,62 @@ export default function VoiceInterface() {
       };
       
       recognition.onend = () => {
-        if (isListening && speechRecognitionRef.current) { // Check isListening before restarting
+        // if (isListening && speechRecognitionRef.current) { // Check isListening before restarting
            // recognition.start(); // Automatically restart if still supposed to be listening
-        } else {
+        // } else {
           // setIsListening(false); // Ensure state is correct if stopped externally
-        }
+        // }
       };
-
       speechRecognitionRef.current = recognition;
     }
 
-    // Initial message from Skylar
-    setChatHistory([{ id: Date.now().toString(), speaker: "skylar", text: initialSkylarMessage, icon: Brain }]);
-    speak(initialSkylarMessage);
+    const initiateSession = async () => {
+      setIsLoadingAIResponse(true);
+      try {
+        const aiInput: VoiceConversationWithSkylarInput = { userInput: "SKYLAR_SESSION_START", sessionState: undefined };
+        const aiResult = await voiceConversationWithSkylar(aiInput);
+        
+        setSessionState(aiResult.updatedSessionState); 
+        
+        const greetingMessage = { id: `skylar-greeting-${Date.now()}`, speaker: "skylar", text: aiResult.skylarResponse, icon: Brain };
+        setChatHistory([greetingMessage]);
+        speak(aiResult.skylarResponse);
+
+      } catch (error) {
+        console.error("Error initiating session with Skylar:", error);
+        const errorMessage = "Sorry, I couldn't start our session properly. Please try refreshing.";
+        setChatHistory([{ id: `error-init-${Date.now()}`, speaker: "system", text: errorMessage, icon: AlertTriangle }]);
+        // speak(errorMessage); // Avoid speaking if initial greeting failed, user can see message.
+        toast({
+          title: "Session Start Error",
+          description: "Could not get initial greeting from Skylar. Please check your connection or refresh.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingAIResponse(false);
+      }
+    };
+
+    if (speechApiSupported && typeof window !== "undefined") { // Check window as speechApiSupported might be true initially
+        initiateSession();
+    }
     
     return () => {
       if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.onresult = null;
+        speechRecognitionRef.current.onerror = null;
+        speechRecognitionRef.current.onend = null;
         speechRecognitionRef.current.stop();
       }
-      window.speechSynthesis?.cancel();
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speechApiSupported]); // speak and toast were causing re-renders, simplified dependencies
+  }, [speechApiSupported]); // Dependencies are minimal to avoid re-triggering session initiation.
 
   const handleUserSpeech = async (userInput: string) => {
-    setCurrentTranscript(""); // Clear interim transcript
+    setCurrentTranscript("");
     setChatHistory(prev => [...prev, { id: Date.now().toString(), speaker: "user", text: userInput, icon: User }]);
     setIsLoadingAIResponse(true);
 
@@ -197,11 +230,8 @@ export default function VoiceInterface() {
       }
     } else {
       try {
-        // Check for microphone permission
-        // This is a common pattern, but navigator.permissions.query might not be universally supported for 'microphone'
-        // A more robust way is to just try starting and handle the error.
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+            await navigator.mediaDevices.getUserMedia({ audio: true }); 
         }
         speechRecognitionRef.current.start();
         setIsListening(true);
@@ -283,7 +313,9 @@ export default function VoiceInterface() {
             <Mic className="h-10 w-10" />
           )}
         </Button>
-        {!speechApiSupported && <p className="text-xs text-destructive">Voice interaction is not supported by your browser.</p>}
+        {!speechApiSupported && chatHistory.length > 0 && chatHistory[0].id.startsWith('system-no-voice') && (
+            <p className="text-xs text-destructive text-center">Voice interaction is not supported by your browser. This app requires voice functionality to work as intended.</p>
+        )}
       </footer>
     </div>
   );
