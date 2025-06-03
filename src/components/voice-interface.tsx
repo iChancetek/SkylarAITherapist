@@ -72,7 +72,7 @@ export default function VoiceInterface() {
       setSelectedVoice(null); 
     }
     if (!voicesLoaded) setVoicesLoaded(true);
-  }, [speechApiSupported, voicesLoaded]);
+  }, [speechApiSupported, voicesLoaded]); // voicesLoaded dependency is important here
 
   useEffect(() => {
     if (speechApiSupported && window.speechSynthesis) {
@@ -128,14 +128,14 @@ export default function VoiceInterface() {
     utterance.onend = () => {
       setIsSkylarSpeaking(false);
       if (onEndCallback) onEndCallback();
-      // If we were listening before Skylar spoke, try to resume
       if (isListening && speechRecognitionRef.current) {
         console.log("Skylar finished speaking, attempting to restart recognition.");
-        manuallyStoppedRef.current = false; // Ensure flag is clear for auto-restart
+        manuallyStoppedRef.current = false; 
         try {
           speechRecognitionRef.current.start();
         } catch (e) {
           console.warn("Could not restart recognition after Skylar speech", e);
+          setIsListening(false); 
         }
       }
     };
@@ -238,8 +238,11 @@ export default function VoiceInterface() {
         setChatHistory(prev => [...prev, { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle }]);
         speak(safetyResult.safetyResponse, () => {
             if (isListening && speechRecognitionRef.current) { 
-                 manuallyStoppedRef.current = false; // Ensure flag is clear for auto-restart
-                 try { speechRecognitionRef.current.start(); } catch(e) { console.warn("Could not restart recognition after safety response", e); }
+                 manuallyStoppedRef.current = false;
+                 try { speechRecognitionRef.current.start(); } catch(e) { 
+                    console.warn("Could not restart recognition after safety response", e);
+                    setIsListening(false);
+                }
             }
         });
         setIsLoadingAIResponse(false);
@@ -251,17 +254,18 @@ export default function VoiceInterface() {
       
       setSessionState(aiResult.updatedSessionState);
       setChatHistory(prev => [...prev, { id: `skylar-${Date.now()}`, speaker: "skylar", text: aiResult.skylarResponse, icon: Brain }]);
-      speak(aiResult.skylarResponse); // speak will handle restarting listening if needed
+      speak(aiResult.skylarResponse); 
 
     } catch (error) {
       handleGenericError(error, "user speech");
       if (isListening && speechRecognitionRef.current) { 
         console.log("Error in handleUserSpeech, attempting to restart recognition.");
-        manuallyStoppedRef.current = false; // Ensure flag is clear
+        manuallyStoppedRef.current = false; 
         try {
           speechRecognitionRef.current.start();
         } catch(e) {
           console.warn("Could not restart recognition after AI error", e);
+          setIsListening(false);
         }
       }
     } finally {
@@ -272,9 +276,12 @@ export default function VoiceInterface() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition || !window.speechSynthesis) {
+      const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognitionImpl || !window.speechSynthesis) {
         setSpeechApiSupported(false);
+        if (!voicesLoaded) { // ensure voicesLoaded is set if API is not supported
+            setVoicesLoaded(true);
+        }
         if (! (window.SpeechRecognition || window.webkitSpeechRecognition) || !window.speechSynthesis) {
             toast({
                 title: "Browser Not Supported",
@@ -288,7 +295,7 @@ export default function VoiceInterface() {
       }
       setSpeechApiSupported(true);
 
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionImpl();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = "en-US";
@@ -347,9 +354,10 @@ export default function VoiceInterface() {
             break;
           case 'aborted':
             console.log("Speech recognition aborted.");
-            if (isListening && speechRecognitionRef.current && !isSkylarSpeaking && !isLoadingAIResponse && !manuallyStoppedRef.current) { // Only auto-restart if not manually stopped
+            if (isListening && speechRecognitionRef.current && !isSkylarSpeaking && !isLoadingAIResponse && !manuallyStoppedRef.current) { 
                 autoRestart = true; 
             } else {
+                setIsListening(false); // Ensure state consistency if aborted and not restarting
                 return; 
             }
             break;
@@ -375,7 +383,7 @@ export default function VoiceInterface() {
         if (autoRestart) {
             console.log(`Attempting to auto-restart recognition due to: ${event.error}`);
             setCurrentTranscript(""); 
-            manuallyStoppedRef.current = false; // Ensure flag is clear for auto-restart
+            manuallyStoppedRef.current = false;
             setTimeout(() => {
                 try {
                     if (isListening && speechRecognitionRef.current) {
@@ -400,6 +408,7 @@ export default function VoiceInterface() {
 
         if (shouldStopGlobalListening && isListening) {
           setIsListening(false);
+          manuallyStoppedRef.current = true; // Treat as if manually stopped to prevent onend restart
           if (speechRecognitionRef.current) {
             try {
                 speechRecognitionRef.current.stop();
@@ -411,10 +420,10 @@ export default function VoiceInterface() {
       };
       
       recognition.onend = () => {
-        console.log("SpeechRecognition service ended. manuallyStoppedRef:", manuallyStoppedRef.current, "isListening:", isListening);
+        console.log("SpeechRecognition service ended. manuallyStoppedRef:", manuallyStoppedRef.current, "isListening:", isListening, "isSkylarSpeaking:", isSkylarSpeaking, "isLoadingAIResponse:", isLoadingAIResponse);
         if (manuallyStoppedRef.current) {
           console.log("Recognition ended due to manual stop. Not restarting.");
-          // manuallyStoppedRef.current = false; // Reset if desired, or let next start action reset it
+          setIsListening(false); 
           return;
         }
         
@@ -425,12 +434,22 @@ export default function VoiceInterface() {
           } catch (e: any) {
             if (e && e.name !== 'InvalidStateError') { 
                 console.warn("Could not restart recognition from onend:", e);
+                setIsListening(false);
             } else if (e && e.name === 'InvalidStateError') {
                 console.log("Recognition already started or in invalid state, not restarting from onend.");
             }
           }
         } else {
             console.log("Not restarting recognition from onend (conditions not met or manual stop was processed). Current isListening:", isListening);
+            if(isListening && (isSkylarSpeaking || isLoadingAIResponse)) {
+              // If listening was true, but we didn't restart because Skylar is busy,
+              // it implies we expect it to be restarted by speak's onEnd or handleUserSpeech's finally block.
+              // No action needed here, just logging.
+            } else if (isListening) {
+              // isListening is true but other conditions not met, and not a manual stop. This is an anomaly.
+              console.warn("onend: isListening is true, but not restarting and not a manual stop. Setting isListening to false.");
+              setIsListening(false);
+            }
         }
       };
       
@@ -439,6 +458,7 @@ export default function VoiceInterface() {
 
     return () => {
       if (speechRecognitionRef.current) {
+        manuallyStoppedRef.current = true; // Ensure it stops on unmount
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onerror = null;
         speechRecognitionRef.current.onend = null;
@@ -450,7 +470,7 @@ export default function VoiceInterface() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [speechApiSupported, toast, handleUserSpeech, isListening, isSkylarSpeaking, isLoadingAIResponse]); 
+  }, [speechApiSupported, voicesLoaded, toast, handleUserSpeech, isListening, isSkylarSpeaking, isLoadingAIResponse]); 
 
   useEffect(() => {
     const initiateSession = async () => {
@@ -459,18 +479,18 @@ export default function VoiceInterface() {
       setIsLoadingAIResponse(true);
       try {
         const aiInput: VoiceConversationWithSkylarInput = { userInput: "SKYLAR_SESSION_START", sessionState: undefined };
+        console.log("Initiating session with AI...");
         const aiResult = await voiceConversationWithSkylar(aiInput);
+        console.log("AI session initiated, response:", aiResult.skylarResponse);
         
         setSessionState(aiResult.updatedSessionState); 
         
         const greetingMessage = { id: `skylar-greeting-${Date.now()}`, speaker: "skylar" as const, text: aiResult.skylarResponse, icon: Brain };
         setChatHistory([greetingMessage]);
-        speak(aiResult.skylarResponse, () => { // speak will handle restarting listening if isListening is true
-            // No explicit start here, speak's onend will handle if isListening is already true.
-            // If we want to auto-start listening after greeting, we'd set isListening true BEFORE this.
-        });
+        speak(aiResult.skylarResponse);
 
       } catch (error) {
+        console.error("Error during session initiation in useEffect:", error);
         handleGenericError(error, "session initiation");
       } finally {
         setIsLoadingAIResponse(false);
@@ -480,18 +500,21 @@ export default function VoiceInterface() {
     if (speechApiSupported && voicesLoaded && chatHistory.length === 0 && !isLoadingAIResponse) { 
       initiateSession();
     }
-  }, [speechApiSupported, voicesLoaded, chatHistory.length, speak, handleGenericError, isLoadingAIResponse, setSessionState, isListening]); // Added isListening to ensure speak's callback has current state
+  // Dependencies for initial session: ensure it only runs when truly ready and hasn't run yet.
+  // speak, handleGenericError, setSessionState are stable or wrapped in useCallback.
+  }, [speechApiSupported, voicesLoaded, chatHistory.length, isLoadingAIResponse, speak, handleGenericError, setSessionState]);
 
 
   const toggleListening = async () => {
     if (!speechApiSupported || !speechRecognitionRef.current) {
         toast({ title: "Voice Error", description: "Speech recognition is not supported or not initialized.", variant: "destructive"});
+        setIsListening(false);
         return;
     }
   
     if (isListening) { 
       console.log("Manually stopping listening.");
-      manuallyStoppedRef.current = true; // Signal manual stop
+      manuallyStoppedRef.current = true; 
       try {
         if (speechRecognitionRef.current) {
           speechRecognitionRef.current.stop();
@@ -499,14 +522,14 @@ export default function VoiceInterface() {
       } catch (e) {
         console.warn("Error stopping speech recognition:", e);
       }
-      setIsListening(false); 
+      setIsListening(false); // Set state immediately
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel(); 
         setIsSkylarSpeaking(false);
       }
     } else { 
-      console.log("Attempting to start listening.");
-      manuallyStoppedRef.current = false; // Clear flag for new listening session
+      console.log("Attempting to start listening manually.");
+      manuallyStoppedRef.current = false; 
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
         setIsSkylarSpeaking(false);
@@ -532,7 +555,7 @@ export default function VoiceInterface() {
         }
         speechRecognitionRef.current.start();
         setIsListening(true);
-        console.log("Speech recognition started.");
+        console.log("Speech recognition started by toggleListening.");
       } catch (err: any) {
         console.error("Error starting speech recognition in toggleListening:", err);
         let description = "Could not start voice recognition. Please check your microphone and permissions.";
@@ -542,13 +565,12 @@ export default function VoiceInterface() {
             description = "Listening service is busy or in an invalid state. Please wait or try again.";
             try {
                 if (speechRecognitionRef.current) {
-                    speechRecognitionRef.current.abort(); 
-                    speechRecognitionRef.current.start();
-                    setIsListening(true); 
-                    description = "Re-initialized listening. Please try again."; 
+                    // Attempt to abort and restart might be too aggressive here,
+                    // let's just ensure the state is correct.
+                    console.warn("InvalidStateError encountered when trying to start listening.");
                 }
             } catch (abortErr) {
-                console.warn("Could not abort/restart from InvalidStateError:", abortErr);
+                console.warn("Could not handle InvalidStateError:", abortErr);
             }
         } else if (err && err.name === "NoSpeechError") {
             description = "No speech was detected. Make sure your microphone is working and try speaking clearly.";
@@ -561,7 +583,7 @@ export default function VoiceInterface() {
           description: description,
           variant: "destructive",
         });
-        setIsListening(false);
+        setIsListening(false); // Ensure UI reflects failure to start
       }
     }
   };
@@ -639,6 +661,8 @@ export default function VoiceInterface() {
     </div>
   );
 }
+    
+
     
 
     
