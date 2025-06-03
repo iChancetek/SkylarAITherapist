@@ -27,7 +27,7 @@ export default function VoiceInterface() {
   const [isLoadingAIResponse, setIsLoadingAIResponse] = useState(false);
   const [speechApiSupported, setSpeechApiSupported] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [voicesLoaded, setVoicesLoaded] = useState(false); // New state
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
 
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
@@ -35,7 +35,7 @@ export default function VoiceInterface() {
 
   const loadVoices = useCallback(() => {
     if (!speechApiSupported || !window.speechSynthesis) {
-      setVoicesLoaded(true); // Consider voices "loaded" if API not supported, to unblock initial greeting effect.
+      setVoicesLoaded(true);
       return;
     }
     const voices = window.speechSynthesis.getVoices();
@@ -47,26 +47,21 @@ export default function VoiceInterface() {
         "jessa", "zira", "lucy", "anna", "claire", "emily", "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
       ];
 
-      // Priority 1: US English female voices
       const enUSVoices = voices.filter(v => v.lang.startsWith("en-US"));
       targetVoice = enUSVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
 
-      // Priority 2: If no specific female US voice, take any default or first US voice (hoping it's female or acceptable)
       if (!targetVoice && enUSVoices.length > 0) {
         targetVoice = enUSVoices.find(v => v.default) || enUSVoices[0];
       }
 
-      // Priority 3: Any English female voices (non-US)
       if (!targetVoice) {
         const enVoices = voices.filter(v => v.lang.startsWith("en"));
         targetVoice = enVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
-         // Priority 4: If no specific female English voice, take any default or first English voice
         if(!targetVoice && enVoices.length > 0) {
             targetVoice = enVoices.find(v => v.default) || enVoices[0];
         }
       }
       
-      // Priority 5: Final fallback to any default voice or the first voice available
       if (!targetVoice && voices.length > 0) {
         targetVoice = voices.find(v => v.default) || voices[0];
       }
@@ -74,23 +69,18 @@ export default function VoiceInterface() {
       setSelectedVoice(targetVoice);
       setVoicesLoaded(true);
     } else {
-      // If voices list is empty, they might load later, keep voicesLoaded false.
-      // onvoiceschanged should trigger this function again.
-      setVoicesLoaded(false);
+      setVoicesLoaded(false); // Keep trying if voices aren't loaded yet
     }
   }, [speechApiSupported]);
 
-
-  // Effect to load voices and listen for changes
   useEffect(() => {
     if (speechApiSupported && window.speechSynthesis) {
       loadVoices(); // Initial attempt
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
+        window.speechSynthesis.onvoiceschanged = loadVoices; // Listener for subsequent changes
       }
     } else {
-      // If speech API not supported, mark voices as "loaded" so other logic depending on it can proceed.
-      setVoicesLoaded(true);
+      setVoicesLoaded(true); // If API not supported, mark as "loaded" to proceed
     }
     return () => {
       if (speechApiSupported && window.speechSynthesis) {
@@ -118,9 +108,9 @@ export default function VoiceInterface() {
     const utterance = new SpeechSynthesisUtterance(text);
     if (selectedVoice) {
       utterance.voice = selectedVoice;
-      utterance.lang = selectedVoice.lang; // Use the selected voice's language
+      utterance.lang = selectedVoice.lang;
     } else {
-      utterance.lang = "en-US"; // Default to US English if no specific voice is selected
+      utterance.lang = "en-US"; // Fallback language
     }
 
     utterance.onstart = () => setIsSkylarSpeaking(true);
@@ -168,129 +158,7 @@ export default function VoiceInterface() {
     });
   }, [toast, setChatHistory]);
 
-
-  // Effect for Speech Recognition Setup
-  useEffect(() => {
-    if (typeof window !== "undefined" && speechApiSupported) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) { // This check is a bit redundant due to speechApiSupported but safe
-        setSpeechApiSupported(false); // Should have been caught earlier
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-          setIsSkylarSpeaking(false);
-        }
-        let interimTranscript = "";
-        let finalTranscript = "";
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        setCurrentTranscript(interimTranscript);
-        if (finalTranscript.trim()) {
-          if (speechRecognitionRef.current && isListening) {
-            speechRecognitionRef.current.stop();
-          }
-          handleUserSpeech(finalTranscript.trim());
-        }
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error("SpeechRecognition Error:", event.error);
-        let errorMessage = "An unknown error occurred with speech recognition.";
-        // ... (error messages as before)
-        if (event.error === 'not-allowed' || event.error === 'security') {
-          errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
-        } else if (event.error === 'no-speech') {
-          errorMessage = "No speech detected. Please try speaking again.";
-        } else if (event.error === 'network') {
-          errorMessage = "Network error during speech recognition. Please check your connection.";
-        } else if (event.error === 'audio-capture') {
-          errorMessage = "Audio capture failed. Please check your microphone settings and ensure it's working.";
-        } else if (event.error === 'aborted') {
-            errorMessage = "Speech recognition was aborted. If you didn't stop it, please try again."
-        }
-        toast({
-          title: "Speech Recognition Error",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        setIsListening(false);
-      };
-      
-      speechRecognitionRef.current = recognition;
-    } else if (typeof window !== "undefined" && !speechApiSupported){
-        // Initial check for speech API support
-        if (! (window.SpeechRecognition || window.webkitSpeechRecognition) || !window.speechSynthesis) {
-            setSpeechApiSupported(false);
-            toast({
-                title: "Browser Not Supported",
-                description: "Your browser does not support the Web Speech API needed for voice interaction.",
-                variant: "destructive",
-                duration: Infinity,
-            });
-            setChatHistory([{ id: `system-no-voice-${Date.now()}`, speaker: "system", text: "Voice interaction is not supported by your browser. This app requires voice.", icon: AlertTriangle }]);
-        }
-    }
-
-    return () => {
-      if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.onresult = null;
-        speechRecognitionRef.current.onerror = null;
-        speechRecognitionRef.current.onend = null;
-        if (isListening) { 
-            speechRecognitionRef.current.stop();
-        }
-      }
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speechApiSupported]); // Removed isListening from deps, handleUserSpeech from deps as they cause loops or are defined within
-
-  // Effect for Initial Session Greeting
-  useEffect(() => {
-    const initiateSession = async () => {
-      if (isLoadingAIResponse || chatHistory.length > 0) return; // Prevent re-greeting or concurrent calls
-
-      setIsLoadingAIResponse(true);
-      try {
-        const aiInput: VoiceConversationWithSkylarInput = { userInput: "SKYLAR_SESSION_START", sessionState: undefined };
-        const aiResult = await voiceConversationWithSkylar(aiInput);
-        
-        setSessionState(aiResult.updatedSessionState); 
-        
-        const greetingMessage = { id: `skylar-greeting-${Date.now()}`, speaker: "skylar" as const, text: aiResult.skylarResponse, icon: Brain };
-        setChatHistory([greetingMessage]);
-        speak(aiResult.skylarResponse);
-
-      } catch (error) {
-        handleGenericError(error, "session initiation");
-      } finally {
-        setIsLoadingAIResponse(false);
-      }
-    };
-    
-    if (speechApiSupported && voicesLoaded && chatHistory.length === 0) {
-      initiateSession();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speechApiSupported, voicesLoaded, chatHistory.length, /* speak, handleGenericError, voiceConversationWithSkylar are stable or imports */]);
-
-
-  const handleUserSpeech = async (userInput: string) => {
+  const handleUserSpeech = useCallback(async (userInput: string) => {
     setCurrentTranscript("");
     setChatHistory(prev => [...prev, { id: Date.now().toString(), speaker: "user", text: userInput, icon: User }]);
     setIsLoadingAIResponse(true);
@@ -327,7 +195,7 @@ export default function VoiceInterface() {
 
     } catch (error) {
       handleGenericError(error, "user speech");
-      if (isListening && speechRecognitionRef.current) {
+      if (isListening && speechRecognitionRef.current) { 
         try {
           speechRecognitionRef.current.start();
         } catch(e) {
@@ -337,7 +205,189 @@ export default function VoiceInterface() {
     } finally {
       setIsLoadingAIResponse(false);
     }
-  };
+  }, [sessionState, speak, handleGenericError, isListening, setChatHistory, setSessionState, setIsLoadingAIResponse, setCurrentTranscript]);
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && speechApiSupported) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setSpeechApiSupported(false);
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          setIsSkylarSpeaking(false);
+        }
+        let interimTranscript = "";
+        let finalTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        setCurrentTranscript(interimTranscript);
+        if (finalTranscript.trim()) {
+          if (speechRecognitionRef.current && isListening) {
+            speechRecognitionRef.current.stop(); // Stop current before processing
+          }
+          handleUserSpeech(finalTranscript.trim());
+        }
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error("SpeechRecognition Error:", event.error);
+        setCurrentTranscript(""); 
+        let toastMessage = "An unknown error occurred with speech recognition.";
+        let shouldStopGlobalListening = false;
+
+        switch (event.error) {
+          case 'not-allowed':
+          case 'security':
+            toastMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
+            shouldStopGlobalListening = true;
+            break;
+          case 'audio-capture':
+            toastMessage = "Audio capture failed. Please check your microphone and ensure it's working.";
+            shouldStopGlobalListening = true;
+            break;
+          case 'no-speech':
+            toastMessage = "No speech detected. Trying to listen again...";
+            if (isListening && speechRecognitionRef.current && !isSkylarSpeaking && !isLoadingAIResponse) {
+              setTimeout(() => {
+                try {
+                  if (isListening) speechRecognitionRef.current?.start();
+                } catch (e) {
+                  console.warn("Could not restart recognition after no-speech error:", e);
+                  setIsListening(false); 
+                }
+              }, 500);
+               return; // Suppress toast for auto-restarting no-speech
+            } else if (!isListening) {
+              toastMessage = "No speech detected. Please try speaking again.";
+            }
+            break;
+          case 'network':
+            toastMessage = "Network error during speech recognition. Please check connection.";
+            if (isListening && speechRecognitionRef.current && !isSkylarSpeaking && !isLoadingAIResponse) {
+               setTimeout(() => {
+                   try {
+                      if (isListening) speechRecognitionRef.current?.start();
+                   } catch (e) {
+                      console.warn("Could not restart recognition after network error:", e);
+                      setIsListening(false);
+                   }
+               }, 1000);
+               return; // Suppress toast for auto-restarting network error
+            }
+            break;
+          case 'aborted':
+            console.log("Speech recognition aborted (likely intentional or due to stop()).");
+            return; 
+          default:
+            shouldStopGlobalListening = true;
+            break;
+        }
+
+        toast({
+          title: "Speech Recognition Error",
+          description: toastMessage,
+          variant: "destructive",
+        });
+
+        if (shouldStopGlobalListening) {
+          setIsListening(false);
+        }
+      };
+      
+      recognition.onend = () => {
+        console.log("Recognition ended. State: isListening=", isListening, "isSkylarSpeaking=", isSkylarSpeaking, "isLoadingAIResponse=", isLoadingAIResponse);
+        if (isListening && !isSkylarSpeaking && !isLoadingAIResponse && speechRecognitionRef.current) {
+          console.log("Attempting to restart listening from onend.");
+          try {
+            speechRecognitionRef.current.start();
+          } catch (e) {
+            // Avoid toast if it's an InvalidStateError (already started)
+            if (e && e.name !== 'InvalidStateError') {
+                console.warn("Could not restart recognition from onend:", e);
+                setIsListening(false);
+                toast({
+                    title: "Listening Stopped",
+                    description: "Could not automatically restart listening. Press mic to continue.",
+                    variant: "destructive",
+                });
+            } else if (e && e.name === 'InvalidStateError') {
+                console.log("Recognition already started or in invalid state, not restarting from onend.");
+            }
+          }
+        }
+      };
+      
+      speechRecognitionRef.current = recognition;
+    } else if (typeof window !== "undefined" && !speechApiSupported){
+        if (! (window.SpeechRecognition || window.webkitSpeechRecognition) || !window.speechSynthesis) {
+            setSpeechApiSupported(false);
+            toast({
+                title: "Browser Not Supported",
+                description: "Your browser does not support the Web Speech API needed for voice interaction.",
+                variant: "destructive",
+                duration: Infinity,
+            });
+            setChatHistory([{ id: `system-no-voice-${Date.now()}`, speaker: "system", text: "Voice interaction is not supported by your browser. This app requires voice.", icon: AlertTriangle }]);
+        }
+    }
+
+    return () => {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.onresult = null;
+        speechRecognitionRef.current.onerror = null;
+        speechRecognitionRef.current.onend = null;
+        if (speechRecognitionRef.current.stop) { 
+             try { speechRecognitionRef.current.stop(); } catch (e) { console.warn("Error stopping recognition on unmount:", e); }
+        }
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [speechApiSupported, toast, handleGenericError, handleUserSpeech, isListening, isSkylarSpeaking, isLoadingAIResponse]);
+
+  useEffect(() => {
+    const initiateSession = async () => {
+      if (isLoadingAIResponse || chatHistory.length > 0 || !voicesLoaded || !speechApiSupported) return;
+
+      setIsLoadingAIResponse(true);
+      try {
+        const aiInput: VoiceConversationWithSkylarInput = { userInput: "SKYLAR_SESSION_START", sessionState: undefined };
+        const aiResult = await voiceConversationWithSkylar(aiInput);
+        
+        setSessionState(aiResult.updatedSessionState); 
+        
+        const greetingMessage = { id: `skylar-greeting-${Date.now()}`, speaker: "skylar" as const, text: aiResult.skylarResponse, icon: Brain };
+        setChatHistory([greetingMessage]);
+        speak(aiResult.skylarResponse);
+
+      } catch (error) {
+        handleGenericError(error, "session initiation");
+      } finally {
+        setIsLoadingAIResponse(false);
+      }
+    };
+    
+    if (speechApiSupported && voicesLoaded && chatHistory.length === 0) {
+      initiateSession();
+    }
+  }, [speechApiSupported, voicesLoaded, chatHistory.length, speak, handleGenericError, isLoadingAIResponse, setSessionState]); // Added setSessionState
+
 
   const toggleListening = async () => {
     if (!speechApiSupported || !speechRecognitionRef.current) return;
@@ -374,6 +424,8 @@ export default function VoiceInterface() {
         let description = "Could not start voice recognition. Please check your microphone and permissions.";
         if (err && err.name === "NotAllowedError") {
             description = "Microphone access was denied. Please enable it in your browser settings.";
+        } else if (err && err.name === "InvalidStateError"){
+            description = "Listening already started or in an invalid state. Please wait or try refreshing.";
         }
         toast({
           title: "Speech Recognition Start Error",
@@ -458,4 +510,6 @@ export default function VoiceInterface() {
     </div>
   );
 }
+    
+
     
