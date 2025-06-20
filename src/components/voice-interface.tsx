@@ -2,11 +2,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mic, User, Brain, AlertTriangle, Send, Volume2, Square, Loader2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { Mic, User, Brain, AlertTriangle, Loader2 } from "lucide-react";
 import { askiSkylar, type iSkylarInput } from "@/ai/flows/ai-therapy";
 import { safetyNetActivation } from "@/ai/flows/safety-net";
 import { textToSpeech } from "@/ai/flows/tts";
@@ -25,14 +23,13 @@ export default function VoiceInterface() {
   const [isSending, setIsSending] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const [inputValue, setInputValue] = useState("");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const manuallyStoppedRef = useRef(false);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptRef = useRef("");
 
   const { toast } = useToast();
 
@@ -85,16 +82,10 @@ export default function VoiceInterface() {
     }
   };
 
-  const handleSendMessage = async (message?: string) => {
-    if (isSpeaking) {
-      audioRef.current?.pause();
-      setIsSpeaking(false);
-    }
-    const userInput = (message || inputValue).trim();
+  const handleSendMessage = async (userInput: string) => {
     if (!userInput || isSending) return;
 
     setIsSending(true);
-    setInputValue("");
     setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: userInput, icon: User }]);
     
     try {
@@ -109,7 +100,7 @@ export default function VoiceInterface() {
       setSessionState(aiResult.updatedSessionState);
       const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
       setChatHistory(prev => [...prev, iSkylarMessage]);
-      await playAudioResponse(iSkylarMessage.text); // Automatically speak the response
+      await playAudioResponse(iSkylarMessage.text);
       
     } catch (error) {
       console.error("Error sending message:", error);
@@ -121,89 +112,55 @@ export default function VoiceInterface() {
   };
 
   const handleVoiceInput = () => {
-    if (isSpeaking) {
-      audioRef.current?.pause();
-    }
+    if (isListening) return;
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API for voice input.", variant: "destructive" });
       return;
     }
-
-    if (isListening) {
-      manuallyStoppedRef.current = true;
-      recognitionRef.current?.stop();
-      return;
-    }
     
-    manuallyStoppedRef.current = false;
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
-    recognition.interimResults = true;
+    recognition.interimResults = false;
     recognition.continuous = false;
 
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => {
+      transcriptRef.current = "";
+      setIsListening(true);
+    };
+
     recognition.onend = () => {
       setIsListening(false);
-      // Restart if not manually stopped
-      if (!manuallyStoppedRef.current) {
-        setTimeout(() => handleVoiceInput(), 100); 
+      if (transcriptRef.current) {
+        handleSendMessage(transcriptRef.current);
       }
     };
+    
     recognition.onerror = (event) => {
-      let errorMessage = "An unknown error occurred.";
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
-      } else if (event.error === 'no-speech') {
-        errorMessage = "No speech was detected.";
-      } else if (event.error !== 'aborted') {
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        let errorMessage = "An unknown error occurred with voice recognition.";
+         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+           errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
+         }
         toast({ title: "Voice Error", description: errorMessage, variant: "destructive" });
       }
       setIsListening(false);
     };
 
     recognition.onresult = (event) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
-      }
-      
-      if (finalTranscript) {
-        manuallyStoppedRef.current = true; // Stop after a successful utterance.
-        recognition.stop();
-        handleSendMessage(finalTranscript);
-      }
+      transcriptRef.current = event.results[event.results.length - 1][0].transcript;
     };
 
     recognition.start();
   };
   
-  const handleToggleTTS = () => {
-    if (isSpeaking) {
-        audioRef.current?.pause();
-    } else {
-        const lastAgentMessage = [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar');
-        if (lastAgentMessage?.text) {
-             if (audioRef.current?.src) {
-                audioRef.current.play();
-             } else {
-                playAudioResponse(lastAgentMessage.text);
-             }
-        } else {
-            toast({ title: "No Message", description: "There is no message from iSkylar to play.", variant: "default" });
-        }
+  useEffect(() => {
+    if (!isSpeaking && !isSending && !isInitializing) {
+      handleVoiceInput();
     }
-  };
-  
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    if (isSpeaking) {
-      audioRef.current?.pause();
-    }
-  }
+  }, [isSpeaking, isSending, isInitializing]);
 
   useEffect(() => {
     const currentAudio = audioRef.current;
@@ -230,7 +187,13 @@ export default function VoiceInterface() {
     };
   }, []);
   
-  const lastAgentMessageExists = [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar');
+  const getStatusText = () => {
+    if (isInitializing) return "Contacting iSkylar...";
+    if (isSending) return "iSkylar is thinking...";
+    if (isSpeaking) return "iSkylar is speaking...";
+    if (isListening) return "Listening...";
+    return "Ready to listen";
+  }
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
@@ -263,62 +226,28 @@ export default function VoiceInterface() {
               </CardContent>
             </Card>
           ))}
-           {isSending && (
-             <div className="flex items-center space-x-2 p-4">
-                <Brain className="size-5 shrink-0 text-primary animate-pulse" />
-                <p className="text-sm italic text-muted-foreground">iSkylar is thinking...</p>
-             </div>
-           )}
-           {isInitializing && (
+           {(isSending || isInitializing) && (
              <div className="flex items-center space-x-2 p-4">
                 <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
-                <p className="text-sm italic text-muted-foreground">Contacting iSkylar...</p>
+                <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
              </div>
            )}
         </div>
       </ScrollArea>
 
-      <footer className="flex flex-col items-center space-y-3 pt-4 border-t border-border">
-         <div className="w-full flex items-center space-x-2">
-            <Textarea
-                placeholder="Type your message or use the microphone..."
-                value={inputValue}
-                onChange={handleTextChange}
-                rows={1}
-                className="flex-1 resize-none"
-                disabled={isSending || isInitializing}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                    }
-                }}
-            />
-            <Button onClick={() => handleSendMessage()} disabled={!inputValue.trim() || isSending || isInitializing}>
-                {isSending ? <Loader2 className="animate-spin" /> : <Send />}
-                <span className="sr-only">Send Message</span>
-            </Button>
-         </div>
-         <div className="flex items-center space-x-2">
-            <Button 
-                onClick={handleVoiceInput} 
-                variant="outline" 
-                size="icon" 
-                disabled={isSending || isInitializing}
-                aria-label={isListening ? "Stop listening" : "Start listening"}
-            >
-                {isListening ? <Square className="fill-current text-destructive" /> : <Mic />}
-            </Button>
-            <Button 
-                onClick={handleToggleTTS} 
-                variant="outline" 
-                size="icon" 
-                disabled={isSending || isInitializing || !lastAgentMessageExists}
-                aria-label={isSpeaking ? "Stop speaking" : "Read last message"}
-            >
-                {isSpeaking ? <Square className="fill-current text-destructive" /> : <Volume2 />}
-            </Button>
-         </div>
+      <footer className="flex flex-col items-center justify-center pt-4 border-t border-border h-28">
+         <div 
+            className={`flex items-center justify-center w-20 h-20 rounded-full border-2 transition-colors duration-300 ${
+              isListening ? 'border-primary animate-pulse-lg' : 'border-border'
+            }`}
+          >
+            <Mic className={`transition-colors duration-300 ${
+              isListening ? 'text-primary' : 'text-muted-foreground'
+            }`} size={40} />
+          </div>
+          <p className="text-sm text-muted-foreground mt-2 h-5">
+            {!isSending && !isInitializing && getStatusText()}
+          </p>
       </footer>
     </div>
   );
