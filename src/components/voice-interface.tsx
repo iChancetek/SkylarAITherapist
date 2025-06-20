@@ -33,7 +33,7 @@ export default function VoiceInterface() {
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const manuallyStoppedRef = useRef(false);
   const sessionInitiatedRef = useRef(false);
-  const voicesLoadedRef = useRef(voicesLoaded); 
+  const voicesLoadedRef = useRef(voicesLoaded);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function VoiceInterface() {
   const loadVoices = useCallback(() => {
     if (!speechApiSupported || !window.speechSynthesis) {
       console.warn("[LoadVoices] Speech synthesis not supported or API not available. Forcing voicesLoaded=true.");
-      setVoicesLoaded(true); 
+      setVoicesLoaded(true);
       return;
     }
     const allAvailableVoices = window.speechSynthesis.getVoices();
@@ -56,8 +56,10 @@ export default function VoiceInterface() {
         setVoicesLoaded(true);
       } else {
         console.log("[LoadVoices] No voices found yet, onvoiceschanged is supported. Waiting for event.");
+        // We are now also using a timeout, so we don't solely rely on onvoiceschanged.
+        // No explicit setVoicesLoaded(true) here for this case if onvoiceschanged is supported.
       }
-      return; 
+      return;
     }
 
     let targetVoice: SpeechSynthesisVoice | null = null;
@@ -93,7 +95,7 @@ export default function VoiceInterface() {
 
     setSelectedVoice(targetVoice);
     console.log("[LoadVoices] Final selected voice by loadVoices:", targetVoice ? targetVoice.name : "None (will use browser default/fallback)");
-    setVoicesLoaded(true);
+    setVoicesLoaded(true); // Always set to true after attempting.
   }, [speechApiSupported, setSelectedVoice, setVoicesLoaded]);
 
 
@@ -129,7 +131,7 @@ export default function VoiceInterface() {
 
     if (browserSupportsSpeechSynthesis) {
       console.log("[VoiceInitEffect] Attempting initial voice load by calling loadVoices() directly.");
-      loadVoices(); 
+      loadVoices();
 
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
         console.log("[VoiceInitEffect] Setting onvoiceschanged handler.");
@@ -142,9 +144,9 @@ export default function VoiceInterface() {
       }
       
       voiceLoadTimeoutId = setTimeout(() => {
-        if (!voicesLoadedRef.current) { 
+        if (!voicesLoadedRef.current) {
           console.warn("[VoiceInitEffect TIMEOUT] Voices not loaded after 3 seconds. Forcing voicesLoaded=true to unblock.");
-          setVoicesLoaded(true);
+          setVoicesLoaded(true); // Force it true if timeout is reached and still not loaded
         }
       }, 3000);
 
@@ -193,7 +195,7 @@ export default function VoiceInterface() {
       if (window.speechSynthesis.speaking) {
         console.warn("[Speak] Speech synthesis was already speaking. Pre-emptively cancelling.");
       }
-      window.speechSynthesis.cancel(); 
+      window.speechSynthesis.cancel();
     } catch (cancelError) {
       console.warn("[Speak] Error during unconditional cancel:", cancelError);
     }
@@ -201,7 +203,7 @@ export default function VoiceInterface() {
     let recognitionWasActiveAndWillBeRestarted = false;
     if (speechRecognitionRef.current && isListening) {
         console.log("[Speak] Recognition is active. Temporarily stopping it before TTS playback. Setting manuallyStoppedRef=true.");
-        manuallyStoppedRef.current = true; 
+        manuallyStoppedRef.current = true;
         recognitionWasActiveAndWillBeRestarted = true;
         try {
             speechRecognitionRef.current.stop();
@@ -213,11 +215,11 @@ export default function VoiceInterface() {
     let voiceForUtterance: SpeechSynthesisVoice | null = null;
     console.log(`[Speak] Voice selection: Initial check - selectedVoice (state): ${selectedVoice ? selectedVoice.name : "null"}, voicesLoadedRef.current: ${voicesLoadedRef.current}`);
 
-    // Prioritized voice selection
     if (selectedVoice && voicesLoadedRef.current) {
         console.log(`[Speak] Voice selection: Using selectedVoice from state: ${selectedVoice.name}`);
         voiceForUtterance = selectedVoice;
     }
+
 
     if (!voiceForUtterance) {
         console.log(`[Speak] Voice selection: voiceForUtterance is still null (selectedVoice was null or voicesLoadedRef was false). Attempting direct dynamic lookup.`);
@@ -245,7 +247,7 @@ export default function VoiceInterface() {
                   foundDirectly = enVoices.find(v => v.default) || enVoices[0];
               }
             }
-            if (!foundDirectly && allVoicesNow.length > 0) { 
+            if (!foundDirectly && allVoicesNow.length > 0) {
                 foundDirectly = allVoicesNow.find(v => v.default) || allVoicesNow[0];
             }
 
@@ -265,7 +267,7 @@ export default function VoiceInterface() {
       utterance.lang = voiceForUtterance.lang;
       console.log(`[Speak] Utterance voice set to: ${utterance.voice.name}, lang: ${utterance.lang}`);
     } else {
-      utterance.lang = "en-US"; 
+      utterance.lang = "en-US";
       console.warn(`[Speak] No specific voice selected for utterance. Utterance lang explicitly set to '${utterance.lang}'. Attempting to use a system default voice.`);
     }
 
@@ -284,7 +286,7 @@ export default function VoiceInterface() {
         if (recognitionWasActiveAndWillBeRestarted && speechRecognitionRef.current && isListening) {
             console.log("[Speak handleSpeakEndOrError] Skylar finished or errored, attempting to restart recognition after a short delay.");
             setTimeout(() => {
-                if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) { 
+                if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
                     console.log("[Speak handleSpeakEndOrError] Delay complete, calling recognition.start().");
                     try {
                         speechRecognitionRef.current.start();
@@ -294,7 +296,7 @@ export default function VoiceInterface() {
                 } else {
                      console.log("[Speak handleSpeakEndOrError] Conditions for restarting recognition no longer met after delay.");
                 }
-            }, 100); 
+            }, 100);
         }
         if (onEndCallback) onEndCallback();
     };
@@ -334,33 +336,35 @@ export default function VoiceInterface() {
       handleSpeakEndOrError();
     };
     
-    console.log(`[Speak] Preparing to call window.speechSynthesis.speak(). Utterance details - Text: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice?.name || 'Default'}, Volume: ${utterance.volume}, Rate: ${utterance.rate}, Pitch: ${utterance.pitch}`);
-    console.log(`[Speak] SpeechSynthesis state before speak(): speaking=${window.speechSynthesis.speaking}, pending=${window.speechSynthesis.pending}`);
-
-    try {
-      window.speechSynthesis.speak(utterance);
-    } catch (speakError: any) {
-      console.error("[Speak] Critical error during window.speechSynthesis.speak() call:", speakError);
-      setIsSkylarSpeaking(false);
-      manuallyStoppedRef.current = false; 
-      toast({
-        title: "Critical Speech Error",
-        description: `Failed to initiate speech playback. ${speakError.message || ''}`.trim(),
-        variant: "destructive",
-      });
-       if (recognitionWasActiveAndWillBeRestarted && speechRecognitionRef.current && isListening) {
-            console.log("[Speak] Critical speak() error, attempting to restart recognition.");
-            setTimeout(() => { 
-                if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
-                    try { speechRecognitionRef.current.start(); } catch (e) { console.warn("[Speak] Could not restart recognition after critical speak() error", e); }
-                }
-            }, 100);
+    // Introduce a small delay before speaking
+    setTimeout(() => {
+      try {
+        console.log(`[Speak] Preparing to call window.speechSynthesis.speak(). Utterance details - Text: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice?.name || 'Default'}, Volume: ${utterance.volume}, Rate: ${utterance.rate}, Pitch: ${utterance.pitch}`);
+        console.log(`[Speak] SpeechSynthesis state before speak(): speaking=${window.speechSynthesis.speaking}, pending=${window.speechSynthesis.pending}`);
+        window.speechSynthesis.speak(utterance);
+      } catch (speakError: any) {
+        console.error("[Speak] Critical error during window.speechSynthesis.speak() call:", speakError);
+        setIsSkylarSpeaking(false);
+        manuallyStoppedRef.current = false; 
+        toast({
+          title: "Critical Speech Error",
+          description: `Failed to initiate speech playback. ${speakError.message || ''}`.trim(),
+          variant: "destructive",
+        });
+         if (recognitionWasActiveAndWillBeRestarted && speechRecognitionRef.current && isListening) {
+              console.log("[Speak] Critical speak() error, attempting to restart recognition.");
+              setTimeout(() => { 
+                  if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
+                      try { speechRecognitionRef.current.start(); } catch (e) { console.warn("[Speak] Could not restart recognition after critical speak() error", e); }
+                  }
+              }, 100); 
+          }
+        if (onEndCallback) {
+           try { onEndCallback(); } catch (cbError) { console.error("[Speak] Error in onEndCallback after speak() threw an error:", cbError); }
         }
-      if (onEndCallback) {
-         try { onEndCallback(); } catch (cbError) { console.error("[Speak] Error in onEndCallback after speak() threw an error:", cbError); }
       }
-    }
-  }, [speechApiSupported, toast, selectedVoice, setIsSkylarSpeaking, isListening]);
+    }, 50); // 50ms delay
+  }, [speechApiSupported, toast, selectedVoice, setIsSkylarSpeaking, isListening, voicesLoadedRef]);
 
 
   const handleGenericError = useCallback((error: any, context: "session initiation" | "user speech") => {
@@ -391,15 +395,15 @@ export default function VoiceInterface() {
 
   const initiateSessionAsyncInternal = useCallback(async () => {
       console.log(`[SessionInitFunc] Entered initiateSessionAsyncInternal. voicesLoadedRef.current: ${voicesLoadedRef.current}`);
-      if (!voicesLoadedRef.current) { 
+      if (!voicesLoadedRef.current) {
         console.log("[SessionInitFunc] Aborting: Voices not loaded yet (checked via ref).");
-        toast({ title: "Voice System Not Ready", description: "Skylar's voice system is still initializing. Please wait a moment.", variant: "default"});
+        // Toast moved to toggleListening for this specific scenario
         return;
       }
       
       console.log("[SessionInitFunc] Conditions met. Proceeding with AI call for greeting...");
       
-      sessionInitiatedRef.current = true; 
+      sessionInitiatedRef.current = true;
       setIsLoadingAIResponse(true);
       try {
         console.log("[SessionInitFunc] Calling voiceConversationWithSkylar for SKYLAR_SESSION_START.");
@@ -424,12 +428,12 @@ export default function VoiceInterface() {
       } catch (error) {
         console.error("[SessionInitFunc] Error during session initiation AI call:", error);
         handleGenericError(error, "session initiation");
-        sessionInitiatedRef.current = false; 
+        sessionInitiatedRef.current = false;
       } finally {
         setIsLoadingAIResponse(false);
         console.log("[SessionInitFunc] Finished. isLoadingAIResponse set to false.");
       }
-    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory, toast]);
+    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory, voicesLoadedRef]);
 
 
   const handleUserSpeech = useCallback(async (userInput: string) => {
@@ -459,10 +463,10 @@ export default function VoiceInterface() {
               console.log("[handleUserSpeech speak callback] Conditions appear met. Attempting to start recognition via setTimeout for safety.");
               setTimeout(() => {
                   if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
-                      try { 
+                      try {
                           console.log("[handleUserSpeech speak callback] setTimeout: Calling recognition.start().");
-                          speechRecognitionRef.current.start(); 
-                      } catch(e: any) { 
+                          speechRecognitionRef.current.start();
+                      } catch(e: any) {
                           if (e.name !== 'InvalidStateError') {
                              console.warn("[handleUserSpeech speak callback] setTimeout: Could not restart recognition after AI response.", e);
                           } else {
@@ -472,7 +476,7 @@ export default function VoiceInterface() {
                   } else {
                       console.log("[handleUserSpeech speak callback] setTimeout: Conditions for restarting recognition no longer met.");
                   }
-              }, 150); 
+              }, 100); // Small delay before restarting recognition
           } else {
               console.log("[handleUserSpeech speak callback] Conditions not met for restarting recognition automatically.");
           }
@@ -483,7 +487,7 @@ export default function VoiceInterface() {
       handleGenericError(error, "user speech");
       if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
          console.log("Error in handleUserSpeech, ensuring recognition attempts to restart if speak() didn't.");
-         manuallyStoppedRef.current = false; 
+         manuallyStoppedRef.current = false;
          setTimeout(() => {
             if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
                 try { speechRecognitionRef.current.start(); } catch(e) { console.warn("Could not restart recognition after AI error (from handleUserSpeech)", e); }
@@ -522,9 +526,9 @@ export default function VoiceInterface() {
       console.log("[SR onresult] Received result. Skylar speaking:", window.speechSynthesis.speaking);
       if (window.speechSynthesis.speaking) {
         console.log("[SR onresult] Skylar is speaking, cancelling her speech.");
-        window.speechSynthesis.cancel(); 
+        window.speechSynthesis.cancel();
         setIsSkylarSpeaking(false);
-        manuallyStoppedRef.current = false; 
+        manuallyStoppedRef.current = false;
       }
       let finalTranscript = "";
       let interimTranscript = "";
@@ -542,9 +546,9 @@ export default function VoiceInterface() {
 
       if (finalTranscript.trim()) {
         console.log("[SR onresult] Final transcript received:", finalTranscript.trim(), "Setting manuallyStoppedRef=true before stopping recognition.");
-        setCurrentTranscript(finalTranscript.trim()); 
-        if (isListening) { 
-            manuallyStoppedRef.current = true; 
+        setCurrentTranscript(finalTranscript.trim());
+        if (isListening) {
+            manuallyStoppedRef.current = true;
             try { recognition.stop(); } catch(e) { console.warn("[SR onresult] Error stopping recognition:", e); }
         }
         handleUserSpeech(finalTranscript.trim());
@@ -568,8 +572,8 @@ export default function VoiceInterface() {
         case 'no-speech':
           if (isListening && !isSkylarSpeaking && !isLoadingAIResponse && !manuallyStoppedRef.current) {
             console.log("[SR onerror] No speech detected, attempting auto-restart."); autoRestart = true;
-          } else { 
-            toastMessage = "No speech detected. Please try speaking again."; 
+          } else {
+            toastMessage = "No speech detected. Please try speaking again.";
             console.log("[SR onerror] No speech detected, but not auto-restarting (state check failed or manually stopped).");
           }
           break;
@@ -582,7 +586,7 @@ export default function VoiceInterface() {
         case 'aborted':
           if (manuallyStoppedRef.current) {
              console.log("[SR onerror] Recognition aborted (likely manual stop, stop for TTS, or after final result).");
-             return; 
+             return;
           } else if (isListening && !isSkylarSpeaking && !isLoadingAIResponse) {
             console.log("[SR onerror] Recognition aborted unexpectedly, attempting auto-restart."); autoRestart = true;
           } else {
@@ -600,7 +604,7 @@ export default function VoiceInterface() {
           break;
         case 'language-not-supported':
           toastMessage = "The configured language for speech recognition is not supported."; shouldStopGlobalListening = true; break;
-        default: 
+        default:
           console.log("[SR onerror] Default error case, will stop listening if flag set.");
           shouldStopGlobalListening = true;
           break;
@@ -609,8 +613,8 @@ export default function VoiceInterface() {
       if (autoRestart && currentRecognition) {
           console.log("[SR onerror] Auto-restarting recognition.");
           setCurrentTranscript("");
-          manuallyStoppedRef.current = false; 
-          setTimeout(() => { 
+          manuallyStoppedRef.current = false;
+          setTimeout(() => {
               try {
                   if (isListening && !manuallyStoppedRef.current && currentRecognition) {
                     console.log("[SR onerror] Calling recognition.start() for auto-restart.");
@@ -624,12 +628,12 @@ export default function VoiceInterface() {
                   if (isListening) setIsListening(false);
               }
           }, 100);
-          if (event.error === 'no-speech' && toastMessage.includes("No speech detected.")) { 
-            // Avoid toast
+          if (event.error === 'no-speech' && toastMessage.includes("No speech detected.")) {
+            // Avoid toast for no-speech if auto-restarting
           } else if (event.error !== 'no-speech') {
              toast({ title: "Speech Recognition", description: toastMessage, variant: "default" });
           }
-      } else if (!autoRestart && event.error !== 'aborted') { 
+      } else if (!autoRestart && event.error !== 'aborted') {
         toast({ title: event.error === 'no-speech' ? "Speech Recognition" : "Speech Recognition Error", description: toastMessage, variant: event.error === 'no-speech' ? "default" : "destructive" });
       }
 
@@ -658,7 +662,7 @@ export default function VoiceInterface() {
         try {
           currentRecognition.start();
         } catch (e: any) {
-          if (e?.name !== 'InvalidStateError') { 
+          if (e?.name !== 'InvalidStateError') {
              console.warn("[SR onend] Error restarting recognition, setting isListening to false.", e);
              setIsListening(false);
           } else {
@@ -677,7 +681,7 @@ export default function VoiceInterface() {
     return () => {
       if (speechRecognitionRef.current) {
         console.log("[SpeechRecEffectCleanup] Cleaning up SpeechRecognition listeners and stopping recognition.");
-        manuallyStoppedRef.current = true; 
+        manuallyStoppedRef.current = true;
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onerror = null;
         speechRecognitionRef.current.onend = null;
@@ -706,13 +710,13 @@ export default function VoiceInterface() {
       } catch (e) {
         console.warn("[ToggleListening] Error stopping speech recognition:", e);
       }
-      setIsListening(false); 
+      setIsListening(false);
       if (window.speechSynthesis.speaking) {
         console.log("[ToggleListening] Skylar was speaking, cancelling her speech.");
         window.speechSynthesis.cancel();
         setIsSkylarSpeaking(false);
       }
-    } else { 
+    } else {
       console.log("[ToggleListening] Starting listening (isListening was false). Setting manuallyStoppedRef=false.");
       manuallyStoppedRef.current = false;
       if (window.speechSynthesis.speaking) {
@@ -720,16 +724,19 @@ export default function VoiceInterface() {
         window.speechSynthesis.cancel();
         setIsSkylarSpeaking(false);
       }
-      setCurrentTranscript(""); 
+      setCurrentTranscript("");
 
-      console.log(`[ToggleListening] Checking conditions for initial greeting: sessionInitiatedRef.current=${sessionInitiatedRef.current}, voicesLoaded (state)=${voicesLoaded}, voicesLoadedRef.current=${voicesLoadedRef.current}`);
-      if (!sessionInitiatedRef.current && voicesLoadedRef.current) { 
-        console.log("[ToggleListening] Conditions met (using ref for voicesLoaded): Initiating session (greeting).");
-        await initiateSessionAsyncInternal(); 
-      } else if (!sessionInitiatedRef.current && !voicesLoadedRef.current) {
-        console.warn("[ToggleListening] First mic click, but voices not loaded yet (checked via ref). Greeting will be skipped or delayed.");
-        toast({title: "Voice System Initializing", description: "Skylar's voice is still warming up. Please try clicking the mic again in a moment.", variant: "default"})
+      console.log(`[ToggleListening] Checking conditions for initial greeting: sessionInitiatedRef.current=${sessionInitiatedRef.current}, voicesLoaded (state from ref)=${voicesLoadedRef.current}`);
+      if (!sessionInitiatedRef.current) {
+        if (voicesLoadedRef.current) {
+            console.log("[ToggleListening] Conditions met (using ref for voicesLoaded): Initiating session (greeting).");
+            await initiateSessionAsyncInternal();
+        } else {
+            console.warn("[ToggleListening] First mic click, but voices not loaded yet (checked via ref). Greeting will be skipped or delayed.");
+            toast({title: "Voice System Initializing", description: "Skylar's voice is still warming up. Please try clicking the mic again in a moment.", variant: "default"})
+        }
       }
+
 
       try {
         if (navigator.permissions && navigator.permissions.query) {
@@ -756,7 +763,7 @@ export default function VoiceInterface() {
             console.warn("[ToggleListening] InvalidStateError caught. This might mean recognition was already started or in a process of starting/stopping. Current isListening state:", isListening);
         } else if (err?.message?.toLowerCase().includes("already started")) {
            description = "Listening service is already active.";
-           setIsListening(true); 
+           setIsListening(true);
         }
 
         toast({ title: "Speech Recognition Start Error", description: description, variant: "destructive" });
@@ -833,12 +840,12 @@ export default function VoiceInterface() {
             <Mic className="h-10 w-10" />
           )}
         </Button>
-        {(!speechApiSupported && voicesLoadedRef.current) && ( 
+        {(!speechApiSupported && voicesLoadedRef.current) && (
              <p className="text-xs text-destructive text-center mt-2">
                 Voice interaction is not supported by your browser. This app requires voice functionality.
             </p>
         )}
-         {(!speechApiSupported && !voicesLoadedRef.current) && ( 
+         {(!speechApiSupported && !voicesLoadedRef.current) && (
             <p className="text-xs text-destructive text-center mt-2">
                 Voice interaction is not supported by your browser or voices are still loading. This app requires voice functionality.
             </p>
@@ -858,3 +865,6 @@ export default function VoiceInterface() {
 
 
 
+
+
+    
