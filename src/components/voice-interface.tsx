@@ -151,36 +151,44 @@ export default function VoiceInterface() {
   useEffect(scrollToBottom, [chatHistory]);
 
   const speak = useCallback((text: string, onEndCallback?: () => void) => {
-    console.log(`[Speak] Attempting to speak. Text (first 50 chars): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}". Voices loaded: ${voicesLoaded}`);
-    
     if (!text || text.trim() === "") {
       console.warn("[Speak] Attempted to speak empty text. Aborting.");
       if (onEndCallback) onEndCallback();
       return;
     }
 
+    console.log(`[Speak] Attempting to speak. Text (first 50 chars): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}". Voices loaded: ${voicesLoaded}. Selected voice: ${selectedVoice?.name || "None"}`);
+    
     if (!speechApiSupported || !window.speechSynthesis) {
       console.warn("[Speak] Speech synthesis not supported or not initialized. Aborting.");
       toast({ title: "Speech Error", description: "Cannot play audio, speech synthesis not available.", variant: "destructive" });
       if (onEndCallback) onEndCallback();
       return;
     }
-    
-    // Additional check: if voicesLoaded is false and this is the greeting, it's an issue.
-    if (!voicesLoaded && text.toLowerCase().includes("hi there") && text.toLowerCase().includes("glad you're here")) {
-        console.warn("[Speak] Attempting to speak greeting, but voicesLoaded is false. This might indicate an issue with voice loading lifecycle.");
-    }
 
+    // Unconditionally cancel any ongoing or queued speech
+    try {
+      console.log("[Speak] Unconditionally cancelling any existing speech synthesis.");
+      window.speechSynthesis.cancel();
+    } catch (cancelError) {
+      console.warn("[Speak] Error during unconditional cancel:", cancelError);
+    }
+    
+    // Check if voices are available in the browser at the moment of speaking
+    if (window.speechSynthesis.getVoices().length === 0) {
+      console.warn("[Speak] CRITICAL: No speech synthesis voices available in the browser at the moment of speaking. Playback will likely fail or use a very basic default.");
+    }
+        
     const utterance = new SpeechSynthesisUtterance(text);
     console.log(`[Speak] Current selectedVoice before assigning to utterance:`, selectedVoice ? { name: selectedVoice.name, lang: selectedVoice.lang, default: selectedVoice.default } : "null");
 
     if (selectedVoice) {
       utterance.voice = selectedVoice;
-      utterance.lang = selectedVoice.lang; // Ensure lang matches the voice
+      utterance.lang = selectedVoice.lang; 
       console.log(`[Speak] Using selected voice for utterance: ${selectedVoice.name} (Lang: ${selectedVoice.lang}, Default: ${selectedVoice.default})`);
     } else {
       utterance.lang = "en-US"; 
-      console.warn(`[Speak] selectedVoice is null. Utterance lang explicitly set to '${utterance.lang}'. This will use a system default voice.`);
+      console.warn(`[Speak] selectedVoice is null. Utterance lang explicitly set to '${utterance.lang}'. Attempting to use a system default voice.`);
     }
 
     utterance.onstart = () => {
@@ -234,13 +242,9 @@ export default function VoiceInterface() {
         }
       }
     };
-
-    if (window.speechSynthesis.speaking) {
-      console.log("[Speak] Cancelling existing speech synthesis before speaking new utterance.");
-      window.speechSynthesis.cancel();
-    }
+    
+    console.log(`[Speak] Preparing to call window.speechSynthesis.speak(). Utterance details - Text: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice?.name || 'Default'}`);
     try {
-      console.log(`[Speak] Calling window.speechSynthesis.speak(utterance). Utterance voice: ${utterance.voice?.name}, lang: ${utterance.lang}`);
       window.speechSynthesis.speak(utterance);
     } catch (speakError: any) {
       console.error("[Speak] Critical error during window.speechSynthesis.speak() call:", speakError);
