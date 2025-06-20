@@ -33,7 +33,7 @@ export default function VoiceInterface() {
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const manuallyStoppedRef = useRef(false);
   const sessionInitiatedRef = useRef(false);
-  const voicesLoadedRef = useRef(voicesLoaded); // Ref to track voicesLoaded for timeout
+  const voicesLoadedRef = useRef(voicesLoaded); 
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,11 +56,9 @@ export default function VoiceInterface() {
     if (allAvailableVoices.length === 0) {
       if (window.speechSynthesis.onvoiceschanged === undefined) {
         console.warn("[LoadVoices] No voices found yet, and onvoiceschanged event not supported. App will try to use system default. Marking voices as loaded.");
-        setVoicesLoaded(true); // Unblock if onvoiceschanged is not supported
+        setVoicesLoaded(true); 
       } else {
         console.log("[LoadVoices] No voices found yet, but onvoiceschanged is supported. Waiting for event to populate voices.");
-        // If onvoiceschanged is supported, we wait for it to call loadVoices again.
-        // The timeout in VoiceInitEffect will handle if this event never fires.
       }
       return;
     }
@@ -141,11 +139,11 @@ export default function VoiceInterface() {
       } else {
          console.warn("[VoiceInitEffect] onvoiceschanged not supported by browser. Relied on initial loadVoices call.");
       }
-      // Timeout to force voicesLoaded if onvoiceschanged is unreliable
+      
       voiceLoadTimeoutId = setTimeout(() => {
-        if (!voicesLoadedRef.current) {
+        if (!voicesLoadedRef.current) { // Check ref here
           console.warn("[VoiceInitEffect TIMEOUT] Voices not loaded after 3 seconds. Forcing voicesLoaded=true to unblock.");
-          setVoicesLoaded(true);
+          setVoicesLoaded(true); // This will trigger the voicesLoadedRef.current update via its own useEffect
         }
       }, 3000);
 
@@ -163,7 +161,7 @@ export default function VoiceInterface() {
         window.speechSynthesis.onvoiceschanged = null;
       }
     };
-  }, [loadVoices, setSpeechApiSupported, toast]); // Dependencies: loadVoices (useCallback), setSpeechApiSupported (setState), toast (stable)
+  }, [loadVoices, setSpeechApiSupported, toast]); 
 
 
   const scrollToBottom = () => {
@@ -181,7 +179,7 @@ export default function VoiceInterface() {
       return;
     }
     
-    console.log(`[Speak] Attempting to speak. Text (first 50 chars): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}". Voices loaded (from state): ${voicesLoaded}. Selected voice (from state): ${selectedVoice?.name || "None"}`);
+    console.log(`[Speak] Attempting to speak. Text (first 50 chars): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}". Voices loaded (state): ${voicesLoaded}, Voices loaded (ref): ${voicesLoadedRef.current}. Selected voice (state): ${selectedVoice?.name || "None"}`);
     
     if (!speechApiSupported || !window.speechSynthesis) {
       console.warn("[Speak] Speech synthesis not supported or not initialized. Aborting.");
@@ -215,7 +213,9 @@ export default function VoiceInterface() {
         console.warn("[Speak] selectedVoice (from state) is null. Attempting direct lookup for a fallback voice.");
         const allVoicesNow = window.speechSynthesis.getVoices();
         console.log(`[Speak] Direct lookup: Found ${allVoicesNow.length} voices at this moment.`);
-        if (allVoicesNow.length > 0) {
+        if (allVoicesNow.length === 0) {
+            console.warn("[Speak] CRITICAL during direct lookup: No speech synthesis voices available. Playback will likely fail.");
+        } else {
             const femaleVoiceKeywords = [
               "female", "woman", "girl", "samantha", "allison", "susan", "zoe", "victoria", "tessa",
               "linda", "heather", "eva", "jessa", "zira", "lucy", "anna", "claire", "emily",
@@ -240,10 +240,8 @@ export default function VoiceInterface() {
                 console.log(`[Speak] Direct lookup successful. Using voice: ${foundDirectly.name}`);
                 voiceForUtterance = foundDirectly;
             } else {
-                console.warn("[Speak] Direct lookup failed to find any voice.");
+                console.warn("[Speak] Direct lookup failed to find any suitable voice.");
             }
-        } else {
-            console.warn("[Speak] CRITICAL: No speech synthesis voices available in the browser even with direct lookup. Playback will likely fail.");
         }
     }
         
@@ -366,7 +364,7 @@ export default function VoiceInterface() {
 
   const initiateSessionAsyncInternal = useCallback(async () => {
       console.log("[SessionInitFunc] Entered initiateSessionAsyncInternal.");
-      if (!voicesLoadedRef.current) { // Check ref here as state might be stale in async context
+      if (!voicesLoadedRef.current) {
         console.log("[SessionInitFunc] Aborting: Voices not loaded yet (checked via ref).");
         toast({ title: "Voice System Not Ready", description: "Skylar's voice system is still initializing. Please wait a moment.", variant: "default"});
         return;
@@ -404,7 +402,7 @@ export default function VoiceInterface() {
         setIsLoadingAIResponse(false);
         console.log("[SessionInitFunc] Finished. isLoadingAIResponse set to false.");
       }
-    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory, toast]); // voicesLoadedRef is not a dep here, it's used internally
+    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory, toast]); 
 
 
   const handleUserSpeech = useCallback(async (userInput: string) => {
@@ -671,8 +669,8 @@ export default function VoiceInterface() {
       }
       setCurrentTranscript(""); 
 
-      console.log(`[ToggleListening] Checking conditions for initial greeting: sessionInitiatedRef.current=${sessionInitiatedRef.current}, voicesLoaded (ref)=${voicesLoadedRef.current}, voicesLoaded (state)=${voicesLoaded}`);
-      if (!sessionInitiatedRef.current && voicesLoadedRef.current) { // Use ref for most up-to-date check before async
+      console.log(`[ToggleListening] Checking conditions for initial greeting: sessionInitiatedRef.current=${sessionInitiatedRef.current}, voicesLoaded (state)=${voicesLoaded}, voicesLoaded (ref)=${voicesLoadedRef.current}`);
+      if (!sessionInitiatedRef.current && voicesLoadedRef.current) { 
         console.log("[ToggleListening] Conditions met (using ref for voicesLoaded): Initiating session (greeting).");
         await initiateSessionAsyncInternal(); 
       } else if (!sessionInitiatedRef.current && !voicesLoadedRef.current) {
@@ -755,7 +753,7 @@ export default function VoiceInterface() {
 
       <footer className="flex flex-col items-center space-y-3 pt-4 border-t">
         <div className="h-6 text-sm text-muted-foreground">
-          {isLoadingAIResponse ? "Skylar is thinking..." : isSkylarSpeaking ? "Skylar is speaking..." : isListening ? "Listening..." : (speechApiSupported && voicesLoaded) ? "Press mic to talk" : (!speechApiSupported ? "Voice not supported" : "Loading voices...")}
+          {isLoadingAIResponse ? "Skylar is thinking..." : isSkylarSpeaking ? "Skylar is speaking..." : isListening ? "Listening..." : (speechApiSupported && voicesLoadedRef.current) ? "Press mic to talk" : (!speechApiSupported ? "Voice not supported" : "Loading voices...")}
         </div>
         <Button
           onClick={toggleListening}
@@ -797,3 +795,4 @@ export default function VoiceInterface() {
 
 
     
+
