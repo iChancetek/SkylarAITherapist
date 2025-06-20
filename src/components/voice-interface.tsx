@@ -151,9 +151,7 @@ export default function VoiceInterface() {
       
       voiceLoadTimeoutId = setTimeout(() => {
         console.warn(`[VoiceInitEffect TIMEOUT] 3 seconds reached. Forcing voicesLoaded=true as a fallback.`);
-        if (!voicesLoadedRef.current) { 
-          setVoicesLoaded(true);
-        }
+        setVoicesLoaded(true);
       }, 3000);
 
     } else {
@@ -633,7 +631,7 @@ export default function VoiceInterface() {
       }
 
       if (autoRestart && currentRecognitionOnError) {
-          console.log("[SR onerror] Auto-restarting recognition.");
+          console.log("[SR onerror] Auto-restarting recognition for error:", event.error);
           setCurrentTranscript(""); 
           manuallyStoppedRef.current = false; 
           setTimeout(() => { 
@@ -651,13 +649,18 @@ export default function VoiceInterface() {
               }
           }, 100);
           if (event.error === 'no-speech' && toastMessage.includes("No speech detected.")) {
+            // No toast for a simple no-speech if we're auto-restarting
           } else if (event.error !== 'no-speech') { 
              toast({ title: "Speech Recognition", description: toastMessage, variant: "default" });
           }
-      } else if (!manuallyStoppedRef.current && event.error !== 'aborted') { 
+          return; // IMPORTANT: Return after scheduling auto-restart
+      } 
+      
+      // If not auto-restarting and not a manual abort handled above
+      if (!manuallyStoppedRef.current && event.error !== 'aborted') { 
           console.log(`[SR onerror] Error '${event.error}' occurred and no auto-restart. Setting isListening to false.`);
           setIsListening(false); 
-          if (event.error !== 'aborted') { 
+          if (event.error !== 'aborted') { // Don't toast for manual aborts that weren't returned earlier
               toast({ title: event.error === 'no-speech' ? "Speech Recognition" : "Speech Recognition Error", description: toastMessage, variant: event.error === 'no-speech' ? "default" : "destructive" });
           }
       }
@@ -680,13 +683,14 @@ export default function VoiceInterface() {
       console.log("[SR onend] Recognition ended. Manually stopped:", manuallyStoppedRef.current, "IsListening:", isListening, "Skylar Speaking:", isSkylarSpeaking, "Loading AI:", isLoadingAIResponse);
       
       if (manuallyStoppedRef.current) {
-        console.log("[SR onend] Recognition was stopped intentionally. No auto-restart from onEnd handler.");
+        console.log("[SR onend] Recognition was stopped intentionally (e.g., user toggle, TTS, final result). No auto-restart from onEnd handler.");
         return;
       }
 
+      // Fallback restart if not manually stopped and still supposed to be listening
       if (isListening && !isSkylarSpeaking && !isLoadingAIResponse && currentRecognitionOnEnd) {
         console.log("[SR onend] Conditions met for auto-restart from onEnd (e.g., after a short pause or non-critical error not handled by onerror). Calling recognition.start().");
-        manuallyStoppedRef.current = false; 
+        manuallyStoppedRef.current = false; // Ensure it's false for a potential restart
         try {
           currentRecognitionOnEnd.start();
         } catch (e: any) {
@@ -698,7 +702,7 @@ export default function VoiceInterface() {
           }
         }
       } else {
-          console.log("[SR onend] Recognition ended, but not auto-restarting based on current conditions (e.g. user stopped, Skylar speaking, etc.).");
+          console.log("[SR onend] Recognition ended, but not auto-restarting based on current conditions (e.g. user stopped, Skylar speaking, AI loading, etc.).");
       }
     };
 
@@ -909,3 +913,4 @@ export default function VoiceInterface() {
     </div>
   );
 }
+
