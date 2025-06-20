@@ -151,7 +151,7 @@ export default function VoiceInterface() {
       
       voiceLoadTimeoutId = setTimeout(() => {
         console.warn(`[VoiceInitEffect TIMEOUT] 3 seconds reached. Forcing voicesLoaded=true as a fallback.`);
-        if (!voicesLoadedRef.current) { // Check ref before setting state to avoid redundant renders
+        if (!voicesLoadedRef.current) { 
           setVoicesLoaded(true);
         }
       }, 3000);
