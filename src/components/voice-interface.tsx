@@ -46,7 +46,7 @@ export default function VoiceInterface() {
     let voiceSelectionAttempted = false;
     try {
       if (!speechApiSupported || !window.speechSynthesis) {
-        console.warn("[LoadVoices] Speech synthesis not supported or API not available. Will set voicesLoaded=true in finally.");
+        console.warn("[LoadVoices] Speech synthesis not supported or API not available.");
         return;
       }
       const allAvailableVoices = window.speechSynthesis.getVoices();
@@ -54,21 +54,19 @@ export default function VoiceInterface() {
 
       if (allAvailableVoices.length === 0) {
         if (window.speechSynthesis.onvoiceschanged === undefined) {
-          console.warn("[LoadVoices] No voices found, and onvoiceschanged not supported. Will set voicesLoaded=true in finally.");
+          console.warn("[LoadVoices] No voices found, and onvoiceschanged not supported.");
         } else {
           console.log("[LoadVoices] No voices found yet, onvoiceschanged is supported. Waiting for event or timeout.");
         }
-        // Don't return here, let finally handle setVoicesLoaded
-      }
+        // Do not return here, proceed to finally block to set voicesLoaded
+      } else {
+        let targetVoice: SpeechSynthesisVoice | null = null;
+        const femaleVoiceKeywords = [
+          "female", "woman", "girl", "samantha", "allison", "susan", "zoe", "victoria", "tessa",
+          "linda", "heather", "eva", "jessa", "zira", "lucy", "anna", "claire", "emily",
+          "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
+        ];
 
-      let targetVoice: SpeechSynthesisVoice | null = null;
-      const femaleVoiceKeywords = [
-        "female", "woman", "girl", "samantha", "allison", "susan", "zoe", "victoria", "tessa",
-        "linda", "heather", "eva", "jessa", "zira", "lucy", "anna", "claire", "emily",
-        "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
-      ];
-
-      if (allAvailableVoices.length > 0) { // Only attempt selection if voices are available
         const enUSVoices = allAvailableVoices.filter(v => v.lang.startsWith("en-US"));
         console.log(`[LoadVoices] Found ${enUSVoices.length} en-US voices.`);
         targetVoice = enUSVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
@@ -150,8 +148,10 @@ export default function VoiceInterface() {
       }
       
       voiceLoadTimeoutId = setTimeout(() => {
-        console.warn("[VoiceInitEffect TIMEOUT] 3 seconds reached. Forcing voicesLoaded=true as a fallback.");
-        setVoicesLoaded(true);
+        console.warn(`[VoiceInitEffect TIMEOUT] 3 seconds reached. Forcing voicesLoaded=true as a fallback. Current voicesLoadedRef: ${voicesLoadedRef.current}`);
+        if (!voicesLoadedRef.current) {
+           setVoicesLoaded(true); 
+        }
       }, 3000);
 
     } else {
@@ -226,7 +226,7 @@ export default function VoiceInterface() {
 
 
     if (!voiceForUtterance) {
-        console.log(`[Speak] Voice selection: voiceForUtterance is still null (selectedVoice was null or voicesLoadedRef was false). Attempting direct dynamic lookup.`);
+        console.log(`[Speak] Voice selection: voiceForUtterance is still null. Attempting direct dynamic lookup.`);
         const allVoicesNow = window.speechSynthesis.getVoices();
         console.log(`[Speak] Voice selection: Direct lookup found ${allVoicesNow.length} voices.`);
 
@@ -330,7 +330,7 @@ export default function VoiceInterface() {
       console.log("  - Voice used for this utterance attempt:", voiceForUtterance ? { name: voiceForUtterance.name, lang: voiceForUtterance.lang, default: voiceForUtterance.default } : "None / Fallback Lang");
       console.groupEnd();
       
-      if (errorCode !== 'canceled' && errorCode !== 'interrupted' && errorCode !== 'not-allowed') { // Added not-allowed here to avoid duplicate toasts
+      if (errorCode !== 'canceled' && errorCode !== 'interrupted' && errorCode !== 'not-allowed') { 
         toast({
           title: "Speech Error",
           description: `Could not play Skylar's response. (Error: ${errorCode})`,
@@ -367,7 +367,7 @@ export default function VoiceInterface() {
         }
       }
     }, 50);
-  }, [speechApiSupported, toast, selectedVoice, setIsSkylarSpeaking, isListening, voicesLoadedRef]);
+  }, [speechApiSupported, toast, selectedVoice, setIsSkylarSpeaking, isListening]);
 
 
   const handleGenericError = useCallback((error: any, context: "session initiation" | "user speech") => {
@@ -435,7 +435,7 @@ export default function VoiceInterface() {
         setIsLoadingAIResponse(false);
         console.log("[SessionInitFunc] Finished. isLoadingAIResponse set to false.");
       }
-    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory, voicesLoadedRef]);
+    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory]);
 
 
   const handleUserSpeech = useCallback(async (userInput: string) => {
@@ -523,6 +523,16 @@ export default function VoiceInterface() {
     }
 
     const recognition = speechRecognitionRef.current;
+
+    recognition.onstart = () => { console.log("[SR onstart] Recognition service reported as started."); };
+    recognition.onaudiostart = () => { console.log("[SR onaudiostart] Audio capture reported as started by recognition service."); };
+    recognition.onsoundstart = () => { console.log("[SR onsoundstart] Sound detected by recognition service."); };
+    recognition.onspeechstart = () => { console.log("[SR onspeechstart] Speech detected by recognition service."); };
+    
+    recognition.onaudioend = () => { console.log("[SR onaudioend] Audio capture reported as ended by recognition service."); };
+    recognition.onsoundend = () => { console.log("[SR onsoundend] Sound detection reported as ended by recognition service."); };
+    recognition.onspeechend = () => { console.log("[SR onspeechend] Speech detection reported as ended by recognition service."); };
+
 
     const onResultHandler = (event: SpeechRecognitionEvent) => {
       console.log("[SR onresult] Received result. Skylar speaking:", window.speechSynthesis.speaking);
@@ -684,6 +694,13 @@ export default function VoiceInterface() {
       if (speechRecognitionRef.current) {
         console.log("[SpeechRecEffectCleanup] Cleaning up SpeechRecognition listeners and stopping recognition.");
         manuallyStoppedRef.current = true;
+        speechRecognitionRef.current.onstart = null;
+        speechRecognitionRef.current.onaudiostart = null;
+        speechRecognitionRef.current.onsoundstart = null;
+        speechRecognitionRef.current.onspeechstart = null;
+        speechRecognitionRef.current.onaudioend = null;
+        speechRecognitionRef.current.onsoundend = null;
+        speechRecognitionRef.current.onspeechend = null;
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onerror = null;
         speechRecognitionRef.current.onend = null;
@@ -753,7 +770,7 @@ export default function VoiceInterface() {
                  console.log("[ToggleListening] Microphone permission is 'prompt'.");
             }
         }
-        console.log("[ToggleListening] Calling recognition.start().");
+        console.log("[ToggleListening] Attempting to call recognition.start(). Current recognition object:", recognition);
         recognition.start();
         setIsListening(true);
       } catch (err: any) {
@@ -873,19 +890,3 @@ export default function VoiceInterface() {
     </div>
   );
 }
-    
-
-    
-
-
-
-    
-
-
-
-
-
-
-    
-
-    
