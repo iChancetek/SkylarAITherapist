@@ -67,10 +67,46 @@ export default function VoiceInterface() {
     };
     initiateSession();
   }, [toast]);
+  
+  const handleSendMessage = async (message?: string) => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+    const userInput = (message || inputValue).trim();
+    if (!userInput || isSending) return;
+
+    setIsSending(true);
+    setInputValue("");
+    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: userInput, icon: User }]);
+    
+    try {
+      const safetyResult = await safetyNetActivation({ userInput });
+      if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
+        setChatHistory(prev => [...prev, { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle }]);
+        setIsSending(false);
+        return;
+      }
+
+      const aiResult = await askiSkylar({ userInput, sessionState });
+      setSessionState(aiResult.updatedSessionState);
+      const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
+      setChatHistory(prev => [...prev, iSkylarMessage]);
+      handleToggleTTS(iSkylarMessage.text); // Automatically speak the response
+      
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+      setChatHistory(prev => [...prev, { id: `error-${Date.now()}`, speaker: 'system', text: 'Sorry, I encountered an issue. Please try again.', icon: AlertTriangle }]);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const handleVoiceInput = () => {
     if (isSpeaking) {
       window.speechSynthesis.cancel();
+      setIsSpeaking(false);
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -88,7 +124,7 @@ export default function VoiceInterface() {
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = true;
+    recognition.continuous = false; // We want to stop after one utterance
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -104,8 +140,9 @@ export default function VoiceInterface() {
         errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
       } else if (event.error === 'no-speech') {
         errorMessage = "No speech was detected. Please try again.";
+      } else if (event.error !== 'aborted') {
+        toast({ title: "Voice Error", description: errorMessage, variant: "destructive" });
       }
-      toast({ title: "Voice Error", description: errorMessage, variant: "destructive" });
       setIsListening(false);
     };
 
@@ -120,13 +157,20 @@ export default function VoiceInterface() {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      setInputValue(finalTranscript + interimTranscript);
+      
+      const currentFullTranscript = finalTranscript + interimTranscript;
+      setInputValue(currentFullTranscript); // Show interim results in textarea
+
+      if (finalTranscript) {
+        recognition.stop(); // This will trigger onend
+        handleSendMessage(finalTranscript);
+      }
     };
 
     recognition.start();
   };
   
-  const handleToggleTTS = () => {
+  const handleToggleTTS = (textToSpeak?: string) => {
     if (!('speechSynthesis' in window)) {
         toast({ title: "Browser Not Supported", description: "Your browser does not support Text-to-Speech.", variant: "destructive" });
         return;
@@ -138,13 +182,13 @@ export default function VoiceInterface() {
         return;
     }
 
-    const lastAgentMessage = [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar');
-    if (!lastAgentMessage || !lastAgentMessage.text) {
+    const text = textToSpeak || [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar')?.text;
+    if (!text) {
         toast({ title: "No Message", description: "There is no message from iSkylar to play.", variant: "default" });
         return;
     }
 
-    utteranceRef.current = new SpeechSynthesisUtterance(lastAgentMessage.text);
+    utteranceRef.current = new SpeechSynthesisUtterance(text);
     const utterance = utteranceRef.current;
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -157,37 +201,13 @@ export default function VoiceInterface() {
     window.speechSynthesis.speak(utterance);
   };
   
-  const handleSendMessage = async () => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
     if (isSpeaking) {
       window.speechSynthesis.cancel();
+      setIsSpeaking(false);
     }
-    const userInput = inputValue.trim();
-    if (!userInput || isSending) return;
-
-    setIsSending(true);
-    setInputValue("");
-    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: userInput, icon: User }]);
-    
-    try {
-      const safetyResult = await safetyNetActivation({ userInput });
-      if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
-        setChatHistory(prev => [...prev, { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle }]);
-        setIsSending(false);
-        return;
-      }
-
-      const aiResult = await askiSkylar({ userInput, sessionState });
-      setSessionState(aiResult.updatedSessionState);
-      setChatHistory(prev => [...prev, { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain }]);
-      
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
-      setChatHistory(prev => [...prev, { id: `error-${Date.now()}`, speaker: 'system', text: 'Sorry, I encountered an issue. Please try again.', icon: AlertTriangle }]);
-    } finally {
-      setIsSending(false);
-    }
-  };
+  }
 
   useEffect(() => {
     return () => {
@@ -252,7 +272,7 @@ export default function VoiceInterface() {
             <Textarea
                 placeholder="Type your message or use the microphone..."
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={handleTextChange}
                 rows={1}
                 className="flex-1 resize-none"
                 disabled={isSending || isInitializing}
@@ -263,7 +283,7 @@ export default function VoiceInterface() {
                     }
                 }}
             />
-            <Button onClick={handleSendMessage} disabled={!inputValue.trim() || isSending || isInitializing}>
+            <Button onClick={() => handleSendMessage()} disabled={!inputValue.trim() || isSending || isInitializing}>
                 {isSending ? <Loader2 className="animate-spin" /> : <Send />}
                 <span className="sr-only">Send Message</span>
             </Button>
@@ -279,7 +299,7 @@ export default function VoiceInterface() {
                 {isListening ? <Square className="fill-current text-destructive" /> : <Mic />}
             </Button>
             <Button 
-                onClick={handleToggleTTS} 
+                onClick={() => handleToggleTTS()} 
                 variant="outline" 
                 size="icon" 
                 disabled={isSending || isInitializing || !lastAgentMessageExists || isSpeaking}

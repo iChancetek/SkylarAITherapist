@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const iSkylarInputSchema = z.object({
-  userInput: z.string().describe('The user input from voice. Can be "ISKYLAR_SESSION_START" to initiate the session, or "USER_INTERRUPTED" if the user spoke while iSkylar was speaking.'),
+  userInput: z.string().describe('The user input from voice or text. Can be "ISKYLAR_SESSION_START" to initiate the session.'),
   sessionState: z.string().optional().describe('A JSON string representing the session state, including mood patterns, progress, previously mentioned goals, and user name if known. The AI should aim to update this state and return it.'),
 });
 export type iSkylarInput = z.infer<typeof iSkylarInputSchema>;
@@ -44,8 +44,6 @@ Your goal is to proactively offer personalized, evidence-based guidance around:
 Session State (if available from previous turns, contains mood patterns, progress, goals, user name): {{{sessionState}}}
 
 Key Instructions:
-- Pause to allow for interruptions at any time.
-- If \`userInput\` is "USER_INTERRUPTED", acknowledge the user: "Thank you for clarifying. Let’s focus on that. What’s on your mind?" Then, await their actual new input (which will come in the next turn).
 - Recognize emotional cues from the user's speech text. Use emotional mirroring and validate emotions immediately and empathetically.
 - Use reflective listening: “It sounds like...”, “What I’m hearing is...”
 - Ask thoughtful, open-ended therapeutic questions.
