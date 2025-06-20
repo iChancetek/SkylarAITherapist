@@ -8,13 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, User, Brain, AlertTriangle, Send, Volume2, Square, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { voiceConversationWithISkylar, type VoiceConversationWithISkylarInput } from "@/ai/flows/ai-therapy";
+import { askSkylar, type SkylarInput } from "@/ai/flows/ai-therapy";
 import { safetyNetActivation, type SafetyNetActivationInput } from "@/ai/flows/safety-net";
 import { useToast } from "@/hooks/use-toast";
 
 interface ChatMessage {
   id: string;
-  speaker: "user" | "iSkylar" | "system";
+  speaker: "user" | "Skylar" | "system";
   text: string;
   icon?: React.ElementType;
 }
@@ -45,12 +45,12 @@ export default function VoiceInterface() {
     const initiateSession = async () => {
       setIsInitializing(true);
       try {
-        const aiInput: VoiceConversationWithISkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
-        const aiResult = await voiceConversationWithISkylar(aiInput);
+        const aiInput: SkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
+        const aiResult = await askSkylar(aiInput);
         setSessionState(aiResult.updatedSessionState);
         setChatHistory([{
-          id: `iskylar-greeting-${Date.now()}`,
-          speaker: "iSkylar",
+          id: `skylar-greeting-${Date.now()}`,
+          speaker: "Skylar",
           text: aiResult.skylarResponse,
           icon: Brain
         }]);
@@ -58,7 +58,7 @@ export default function VoiceInterface() {
         console.error("Error during session initiation:", error);
         toast({
           title: "AI Error",
-          description: "Could not start the session with iSkylar. Please refresh.",
+          description: "Could not start the session with Skylar. Please refresh.",
           variant: "destructive"
         });
       } finally {
@@ -69,6 +69,9 @@ export default function VoiceInterface() {
   }, [toast]);
 
   const handleVoiceInput = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+    }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API for voice input.", variant: "destructive" });
@@ -135,9 +138,9 @@ export default function VoiceInterface() {
         return;
     }
 
-    const lastAgentMessage = [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar');
+    const lastAgentMessage = [...chatHistory].reverse().find(msg => msg.speaker === 'Skylar');
     if (!lastAgentMessage || !lastAgentMessage.text) {
-        toast({ title: "No Message", description: "There is no message from iSkylar to play.", variant: "default" });
+        toast({ title: "No Message", description: "There is no message from Skylar to play.", variant: "default" });
         return;
     }
 
@@ -147,7 +150,7 @@ export default function VoiceInterface() {
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => {
-        toast({ title: "Speech Error", description: "Could not play iSkylar's response.", variant: "destructive" });
+        toast({ title: "Speech Error", description: "Could not play Skylar's response.", variant: "destructive" });
         setIsSpeaking(false);
     };
     
@@ -155,6 +158,9 @@ export default function VoiceInterface() {
   };
   
   const handleSendMessage = async () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+    }
     const userInput = inputValue.trim();
     if (!userInput || isSending) return;
 
@@ -170,13 +176,13 @@ export default function VoiceInterface() {
         return;
       }
 
-      const aiResult = await voiceConversationWithISkylar({ userInput, sessionState });
+      const aiResult = await askSkylar({ userInput, sessionState });
       setSessionState(aiResult.updatedSessionState);
-      setChatHistory(prev => [...prev, { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.skylarResponse, icon: Brain }]);
+      setChatHistory(prev => [...prev, { id: `skylar-${Date.now()}`, speaker: "Skylar", text: aiResult.skylarResponse, icon: Brain }]);
       
     } catch (error) {
       console.error("Error sending message:", error);
-      toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+      toast({ title: "AI Error", description: "Could not get a response from Skylar.", variant: "destructive" });
       setChatHistory(prev => [...prev, { id: `error-${Date.now()}`, speaker: 'system', text: 'Sorry, I encountered an issue. Please try again.', icon: AlertTriangle }]);
     } finally {
       setIsSending(false);
@@ -194,12 +200,12 @@ export default function VoiceInterface() {
     };
   }, []);
   
-  const lastAgentMessageExists = [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar');
+  const lastAgentMessageExists = [...chatHistory].reverse().find(msg => msg.speaker === 'Skylar');
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
       <header className="mb-4 flex flex-col items-center text-center">
-        <h1 className="text-4xl font-headline font-bold text-primary">iSkylar</h1>
+        <h1 className="text-4xl font-headline font-bold text-primary">Skylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
       </header>
 
@@ -210,7 +216,7 @@ export default function VoiceInterface() {
               key={msg.id}
               className={`w-fit max-w-[85%] rounded-xl shadow-md ${
                 msg.speaker === "user" ? "ml-auto bg-accent text-accent-foreground" :
-                msg.speaker === "iSkylar" ? "bg-card text-card-foreground border border-primary/30" : 
+                msg.speaker === "Skylar" ? "bg-card text-card-foreground border border-primary/30" : 
                 "bg-destructive/20 text-destructive-foreground mx-auto border-destructive" 
               }`}
             >
@@ -218,7 +224,7 @@ export default function VoiceInterface() {
                 <div className="flex items-start space-x-2">
                   {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
                     msg.speaker === "user" ? "text-accent-foreground" :
-                    msg.speaker === "iSkylar" ? "text-primary" :
+                    msg.speaker === "Skylar" ? "text-primary" :
                     "text-destructive"
                   }`} />}
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
@@ -229,13 +235,13 @@ export default function VoiceInterface() {
            {isSending && (
              <div className="flex items-center space-x-2 p-4">
                 <Brain className="size-5 shrink-0 text-primary animate-pulse" />
-                <p className="text-sm italic text-muted-foreground">iSkylar is thinking...</p>
+                <p className="text-sm italic text-muted-foreground">Skylar is thinking...</p>
              </div>
            )}
            {isInitializing && (
              <div className="flex items-center space-x-2 p-4">
                 <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
-                <p className="text-sm italic text-muted-foreground">Contacting iSkylar...</p>
+                <p className="text-sm italic text-muted-foreground">Contacting Skylar...</p>
              </div>
            )}
         </div>

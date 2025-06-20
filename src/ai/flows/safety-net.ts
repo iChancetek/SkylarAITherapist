@@ -35,7 +35,7 @@ const prompt = ai.definePrompt({
   name: 'safetyNetActivationPrompt',
   input: {schema: SafetyNetActivationInputSchema},
   output: {schema: SafetyNetActivationOutputSchema},
-  prompt: `You are an AI safety monitor for iSkylar, an AI therapist. Your task is to analyze the user's input for any indications of high-risk emotions or thoughts such as suicide, self-harm, abuse, or severe trauma.
+  prompt: `You are an AI safety monitor for Skylar, an AI therapist. Your task is to analyze the user's input for any indications of high-risk emotions or thoughts such as suicide, self-harm, abuse, or severe trauma.
 
 User Input: {{{userInput}}}
 

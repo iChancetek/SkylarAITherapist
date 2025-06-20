@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'iSkylar: AI Voice Therapy',
+  title: 'Skylar: AI Voice Therapy',
   description: 'Real-Time Generative AI Voice Therapist',
 };
 
