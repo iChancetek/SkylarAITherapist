@@ -42,60 +42,66 @@ export default function VoiceInterface() {
   }, [voicesLoaded]);
 
   const loadVoices = useCallback(() => {
-    if (!speechApiSupported || !window.speechSynthesis) {
-      console.warn("[LoadVoices] Speech synthesis not supported or API not available. Forcing voicesLoaded=true.");
+    console.log("[LoadVoices] Attempting to load voices...");
+    let voiceSelectionAttempted = false;
+    try {
+      if (!speechApiSupported || !window.speechSynthesis) {
+        console.warn("[LoadVoices] Speech synthesis not supported or API not available. Will set voicesLoaded=true in finally.");
+        return;
+      }
+      const allAvailableVoices = window.speechSynthesis.getVoices();
+      console.log(`[LoadVoices] Found ${allAvailableVoices.length} voices initially.`);
+
+      if (allAvailableVoices.length === 0) {
+        if (window.speechSynthesis.onvoiceschanged === undefined) {
+          console.warn("[LoadVoices] No voices found, and onvoiceschanged not supported. Will set voicesLoaded=true in finally.");
+        } else {
+          console.log("[LoadVoices] No voices found yet, onvoiceschanged is supported. Waiting for event or timeout.");
+        }
+        // Don't return here, let finally handle setVoicesLoaded
+      }
+
+      let targetVoice: SpeechSynthesisVoice | null = null;
+      const femaleVoiceKeywords = [
+        "female", "woman", "girl", "samantha", "allison", "susan", "zoe", "victoria", "tessa",
+        "linda", "heather", "eva", "jessa", "zira", "lucy", "anna", "claire", "emily",
+        "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
+      ];
+
+      if (allAvailableVoices.length > 0) { // Only attempt selection if voices are available
+        const enUSVoices = allAvailableVoices.filter(v => v.lang.startsWith("en-US"));
+        console.log(`[LoadVoices] Found ${enUSVoices.length} en-US voices.`);
+        targetVoice = enUSVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
+
+        if (!targetVoice && enUSVoices.length > 0) {
+          targetVoice = enUSVoices.find(v => v.default) || enUSVoices[0];
+          console.log(`[LoadVoices] No specific female en-US voice found. Selected default or first en-US voice: ${targetVoice?.name}`);
+        }
+
+        if (!targetVoice) {
+          const enVoices = allAvailableVoices.filter(v => v.lang.startsWith("en"));
+          console.log(`[LoadVoices] No en-US voice match. Found ${enVoices.length} 'en' (any region) voices.`);
+          targetVoice = enVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
+          if (!targetVoice && enVoices.length > 0) {
+            targetVoice = enVoices.find(v => v.default) || enVoices[0];
+            console.log(`[LoadVoices] No specific female 'en' voice found. Selected default or first 'en' voice: ${targetVoice?.name}`);
+          }
+        }
+        
+        if (!targetVoice && allAvailableVoices.length > 0) {
+            targetVoice = allAvailableVoices.find(v => v.default) || allAvailableVoices[0];
+            console.log(`[LoadVoices] No English voice match. Selected system default or first available voice: ${targetVoice?.name}`);
+        }
+        setSelectedVoice(targetVoice);
+        console.log("[LoadVoices] Final selected voice by loadVoices:", targetVoice ? targetVoice.name : "None (will use browser default/fallback)");
+      }
+      voiceSelectionAttempted = true;
+    } catch (error) {
+      console.error("[LoadVoices CATCH] Error during voice fetching/selection:", error);
+    } finally {
+      console.log(`[LoadVoices FINALLY] Setting voicesLoaded to true. Voice selection attempted: ${voiceSelectionAttempted}`);
       setVoicesLoaded(true);
-      return;
     }
-    const allAvailableVoices = window.speechSynthesis.getVoices();
-    console.log(`[LoadVoices] Attempting to load voices. Found ${allAvailableVoices.length} voices initially.`);
-
-    if (allAvailableVoices.length === 0) {
-      if (window.speechSynthesis.onvoiceschanged === undefined) {
-        console.warn("[LoadVoices] No voices found, and onvoiceschanged not supported. Forcing voicesLoaded=true.");
-        setVoicesLoaded(true);
-      } else {
-        console.log("[LoadVoices] No voices found yet, onvoiceschanged is supported. Waiting for event.");
-        // We are now also using a timeout, so we don't solely rely on onvoiceschanged.
-        // No explicit setVoicesLoaded(true) here for this case if onvoiceschanged is supported.
-      }
-      return;
-    }
-
-    let targetVoice: SpeechSynthesisVoice | null = null;
-    const femaleVoiceKeywords = [
-      "female", "woman", "girl", "samantha", "allison", "susan", "zoe", "victoria", "tessa",
-      "linda", "heather", "eva", "jessa", "zira", "lucy", "anna", "claire", "emily",
-      "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
-    ];
-
-    const enUSVoices = allAvailableVoices.filter(v => v.lang.startsWith("en-US"));
-    console.log(`[LoadVoices] Found ${enUSVoices.length} en-US voices.`);
-    targetVoice = enUSVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
-
-    if (!targetVoice && enUSVoices.length > 0) {
-      targetVoice = enUSVoices.find(v => v.default) || enUSVoices[0];
-      console.log(`[LoadVoices] No specific female en-US voice found. Selected default or first en-US voice: ${targetVoice?.name}`);
-    }
-
-    if (!targetVoice) {
-      const enVoices = allAvailableVoices.filter(v => v.lang.startsWith("en"));
-      console.log(`[LoadVoices] No en-US voice match. Found ${enVoices.length} 'en' (any region) voices.`);
-      targetVoice = enVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
-      if (!targetVoice && enVoices.length > 0) {
-        targetVoice = enVoices.find(v => v.default) || enVoices[0];
-        console.log(`[LoadVoices] No specific female 'en' voice found. Selected default or first 'en' voice: ${targetVoice?.name}`);
-      }
-    }
-    
-    if (!targetVoice && allAvailableVoices.length > 0) {
-        targetVoice = allAvailableVoices.find(v => v.default) || allAvailableVoices[0];
-        console.log(`[LoadVoices] No English voice match. Selected system default or first available voice: ${targetVoice?.name}`);
-    }
-
-    setSelectedVoice(targetVoice);
-    console.log("[LoadVoices] Final selected voice by loadVoices:", targetVoice ? targetVoice.name : "None (will use browser default/fallback)");
-    setVoicesLoaded(true); // Always set to true after attempting.
   }, [speechApiSupported, setSelectedVoice, setVoicesLoaded]);
 
 
@@ -144,10 +150,8 @@ export default function VoiceInterface() {
       }
       
       voiceLoadTimeoutId = setTimeout(() => {
-        if (!voicesLoadedRef.current) {
-          console.warn("[VoiceInitEffect TIMEOUT] Voices not loaded after 3 seconds. Forcing voicesLoaded=true to unblock.");
-          setVoicesLoaded(true); // Force it true if timeout is reached and still not loaded
-        }
+        console.warn("[VoiceInitEffect TIMEOUT] 3 seconds reached. Forcing voicesLoaded=true as a fallback.");
+        setVoicesLoaded(true);
       }, 3000);
 
     } else {
@@ -326,7 +330,7 @@ export default function VoiceInterface() {
       console.log("  - Voice used for this utterance attempt:", voiceForUtterance ? { name: voiceForUtterance.name, lang: voiceForUtterance.lang, default: voiceForUtterance.default } : "None / Fallback Lang");
       console.groupEnd();
       
-      if (errorCode !== 'canceled' && errorCode !== 'interrupted') {
+      if (errorCode !== 'canceled' && errorCode !== 'interrupted' && errorCode !== 'not-allowed') { // Added not-allowed here to avoid duplicate toasts
         toast({
           title: "Speech Error",
           description: `Could not play Skylar's response. (Error: ${errorCode})`,
@@ -336,7 +340,6 @@ export default function VoiceInterface() {
       handleSpeakEndOrError();
     };
     
-    // Introduce a small delay before speaking
     setTimeout(() => {
       try {
         console.log(`[Speak] Preparing to call window.speechSynthesis.speak(). Utterance details - Text: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice?.name || 'Default'}, Volume: ${utterance.volume}, Rate: ${utterance.rate}, Pitch: ${utterance.pitch}`);
@@ -363,7 +366,7 @@ export default function VoiceInterface() {
            try { onEndCallback(); } catch (cbError) { console.error("[Speak] Error in onEndCallback after speak() threw an error:", cbError); }
         }
       }
-    }, 50); // 50ms delay
+    }, 50);
   }, [speechApiSupported, toast, selectedVoice, setIsSkylarSpeaking, isListening, voicesLoadedRef]);
 
 
@@ -397,7 +400,6 @@ export default function VoiceInterface() {
       console.log(`[SessionInitFunc] Entered initiateSessionAsyncInternal. voicesLoadedRef.current: ${voicesLoadedRef.current}`);
       if (!voicesLoadedRef.current) {
         console.log("[SessionInitFunc] Aborting: Voices not loaded yet (checked via ref).");
-        // Toast moved to toggleListening for this specific scenario
         return;
       }
       
@@ -476,7 +478,7 @@ export default function VoiceInterface() {
                   } else {
                       console.log("[handleUserSpeech speak callback] setTimeout: Conditions for restarting recognition no longer met.");
                   }
-              }, 100); // Small delay before restarting recognition
+              }, 100);
           } else {
               console.log("[handleUserSpeech speak callback] Conditions not met for restarting recognition automatically.");
           }
@@ -726,7 +728,7 @@ export default function VoiceInterface() {
       }
       setCurrentTranscript("");
 
-      console.log(`[ToggleListening] Checking conditions for initial greeting: sessionInitiatedRef.current=${sessionInitiatedRef.current}, voicesLoaded (state from ref)=${voicesLoadedRef.current}`);
+      console.log(`[ToggleListening] Checking conditions for initial greeting: sessionInitiatedRef.current=${sessionInitiatedRef.current}, voicesLoaded (ref)=${voicesLoadedRef.current}, voicesLoaded (state)=${voicesLoaded}`);
       if (!sessionInitiatedRef.current) {
         if (voicesLoadedRef.current) {
             console.log("[ToggleListening] Conditions met (using ref for voicesLoaded): Initiating session (greeting).");
@@ -773,6 +775,23 @@ export default function VoiceInterface() {
       }
     }
   };
+  
+  let footerMessage = "";
+  if (isLoadingAIResponse) {
+    footerMessage = "Skylar is thinking...";
+  } else if (isSkylarSpeaking) {
+    footerMessage = "Skylar is speaking...";
+  } else if (isListening) {
+    footerMessage = "Listening...";
+  } else {
+    if (!speechApiSupported) {
+      footerMessage = "Voice not supported";
+    } else if (voicesLoadedRef.current) {
+      footerMessage = "Press mic to talk";
+    } else {
+      footerMessage = "Loading voices..."; 
+    }
+  }
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body">
@@ -819,7 +838,7 @@ export default function VoiceInterface() {
 
       <footer className="flex flex-col items-center space-y-3 pt-4 border-t">
         <div className="h-6 text-sm text-muted-foreground">
-          {isLoadingAIResponse ? "Skylar is thinking..." : isSkylarSpeaking ? "Skylar is speaking..." : isListening ? "Listening..." : (speechApiSupported && voicesLoadedRef.current) ? "Press mic to talk" : (!speechApiSupported ? "Voice not supported" : "Loading voices...")}
+          {footerMessage}
         </div>
         <Button
           onClick={toggleListening}
@@ -866,5 +885,7 @@ export default function VoiceInterface() {
 
 
 
+
+    
 
     
