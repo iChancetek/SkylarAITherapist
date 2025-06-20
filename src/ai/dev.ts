@@ -3,3 +3,4 @@ config();
 
 import '@/ai/flows/ai-therapy.ts';
 import '@/ai/flows/safety-net.ts';
+import '@/ai/flows/tts.ts';

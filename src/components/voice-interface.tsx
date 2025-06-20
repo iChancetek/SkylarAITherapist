@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 "use client";
 
@@ -9,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, User, Brain, AlertTriangle, Send, Volume2, Square, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { askiSkylar, type iSkylarInput } from "@/ai/flows/ai-therapy";
-import { safetyNetActivation, type SafetyNetActivationInput } from "@/ai/flows/safety-net";
+import { safetyNetActivation } from "@/ai/flows/safety-net";
+import { textToSpeech } from "@/ai/flows/tts";
 import { useToast } from "@/hooks/use-toast";
 
 interface ChatMessage {
@@ -24,14 +24,15 @@ export default function VoiceInterface() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  
+
   const [inputValue, setInputValue] = useState("");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
-
+  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const manuallyStoppedRef = useRef(false);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { toast } = useToast();
 
@@ -48,12 +49,14 @@ export default function VoiceInterface() {
         const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
         const aiResult = await askiSkylar(aiInput);
         setSessionState(aiResult.updatedSessionState);
-        setChatHistory([{
+        const greetingMessage = {
           id: `iskylar-greeting-${Date.now()}`,
           speaker: "iSkylar",
           text: aiResult.iSkylarResponse,
           icon: Brain
-        }]);
+        };
+        setChatHistory([greetingMessage]);
+        await playAudioResponse(greetingMessage.text);
       } catch (error) {
         console.error("Error during session initiation:", error);
         toast({
@@ -68,9 +71,23 @@ export default function VoiceInterface() {
     initiateSession();
   }, [toast]);
   
+  const playAudioResponse = async (text: string) => {
+    if (!text) return;
+    try {
+      const { audioDataUri } = await textToSpeech(text);
+      if (audioRef.current) {
+        audioRef.current.src = audioDataUri;
+        await audioRef.current.play();
+      }
+    } catch (error) {
+      console.error("Error playing audio response:", error);
+      toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
+    }
+  };
+
   const handleSendMessage = async (message?: string) => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      audioRef.current?.pause();
       setIsSpeaking(false);
     }
     const userInput = (message || inputValue).trim();
@@ -92,7 +109,7 @@ export default function VoiceInterface() {
       setSessionState(aiResult.updatedSessionState);
       const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
       setChatHistory(prev => [...prev, iSkylarMessage]);
-      handleToggleTTS(iSkylarMessage.text); // Automatically speak the response
+      await playAudioResponse(iSkylarMessage.text); // Automatically speak the response
       
     } catch (error) {
       console.error("Error sending message:", error);
@@ -105,8 +122,7 @@ export default function VoiceInterface() {
 
   const handleVoiceInput = () => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+      audioRef.current?.pause();
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -115,31 +131,32 @@ export default function VoiceInterface() {
     }
 
     if (isListening) {
+      manuallyStoppedRef.current = true;
       recognitionRef.current?.stop();
-      setIsListening(false);
       return;
     }
-
+    
+    manuallyStoppedRef.current = false;
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = false; // We want to stop after one utterance
+    recognition.continuous = false;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
+    recognition.onstart = () => setIsListening(true);
     recognition.onend = () => {
       setIsListening(false);
+      // Restart if not manually stopped
+      if (!manuallyStoppedRef.current) {
+        setTimeout(() => handleVoiceInput(), 100); 
+      }
     };
-
     recognition.onerror = (event) => {
       let errorMessage = "An unknown error occurred.";
-      if (event.error === 'not-allowed') {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
       } else if (event.error === 'no-speech') {
-        errorMessage = "No speech was detected. Please try again.";
+        errorMessage = "No speech was detected.";
       } else if (event.error !== 'aborted') {
         toast({ title: "Voice Error", description: errorMessage, variant: "destructive" });
       }
@@ -147,22 +164,16 @@ export default function VoiceInterface() {
     };
 
     recognition.onresult = (event) => {
-      let interimTranscript = '';
       let finalTranscript = '';
-
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
         }
       }
       
-      const currentFullTranscript = finalTranscript + interimTranscript;
-      setInputValue(currentFullTranscript); // Show interim results in textarea
-
       if (finalTranscript) {
-        recognition.stop(); // This will trigger onend
+        manuallyStoppedRef.current = true; // Stop after a successful utterance.
+        recognition.stop();
         handleSendMessage(finalTranscript);
       }
     };
@@ -170,52 +181,51 @@ export default function VoiceInterface() {
     recognition.start();
   };
   
-  const handleToggleTTS = (textToSpeak?: string) => {
-    if (!('speechSynthesis' in window)) {
-        toast({ title: "Browser Not Supported", description: "Your browser does not support Text-to-Speech.", variant: "destructive" });
-        return;
-    }
-
+  const handleToggleTTS = () => {
     if (isSpeaking) {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
-        return;
+        audioRef.current?.pause();
+    } else {
+        const lastAgentMessage = [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar');
+        if (lastAgentMessage?.text) {
+             if (audioRef.current?.src) {
+                audioRef.current.play();
+             } else {
+                playAudioResponse(lastAgentMessage.text);
+             }
+        } else {
+            toast({ title: "No Message", description: "There is no message from iSkylar to play.", variant: "default" });
+        }
     }
-
-    const text = textToSpeak || [...chatHistory].reverse().find(msg => msg.speaker === 'iSkylar')?.text;
-    if (!text) {
-        toast({ title: "No Message", description: "There is no message from iSkylar to play.", variant: "default" });
-        return;
-    }
-
-    utteranceRef.current = new SpeechSynthesisUtterance(text);
-    const utterance = utteranceRef.current;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => {
-        toast({ title: "Speech Error", description: "Could not play iSkylar's response.", variant: "destructive" });
-        setIsSpeaking(false);
-    };
-    
-    window.speechSynthesis.speak(utterance);
   };
   
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+      audioRef.current?.pause();
     }
   }
 
   useEffect(() => {
+    const currentAudio = audioRef.current;
+    const onPlay = () => setIsSpeaking(true);
+    const onPause = () => setIsSpeaking(false);
+    const onEnded = () => setIsSpeaking(false);
+
+    if (currentAudio) {
+      currentAudio.addEventListener('play', onPlay);
+      currentAudio.addEventListener('pause', onPause);
+      currentAudio.addEventListener('ended', onEnded);
+    }
+
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      if (currentAudio) {
+        currentAudio.removeEventListener('play', onPlay);
+        currentAudio.removeEventListener('pause', onPause);
+        currentAudio.removeEventListener('ended', onEnded);
+        currentAudio.pause();
       }
     };
   }, []);
@@ -224,6 +234,7 @@ export default function VoiceInterface() {
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
+      <audio ref={audioRef} />
       <header className="mb-4 flex flex-col items-center text-center">
         <h1 className="text-4xl font-headline font-bold text-primary">iSkylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
@@ -299,10 +310,10 @@ export default function VoiceInterface() {
                 {isListening ? <Square className="fill-current text-destructive" /> : <Mic />}
             </Button>
             <Button 
-                onClick={() => handleToggleTTS()} 
+                onClick={handleToggleTTS} 
                 variant="outline" 
                 size="icon" 
-                disabled={isSending || isInitializing || !lastAgentMessageExists || isSpeaking}
+                disabled={isSending || isInitializing || !lastAgentMessageExists}
                 aria-label={isSpeaking ? "Stop speaking" : "Read last message"}
             >
                 {isSpeaking ? <Square className="fill-current text-destructive" /> : <Volume2 />}
