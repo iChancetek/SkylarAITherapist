@@ -36,7 +36,7 @@ export default function VoiceInterface() {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log("[VoiceDebug] selectedVoice changed:", selectedVoice ? selectedVoice.name : "null");
+    console.log("[VoiceDebug] selectedVoice state changed to:", selectedVoice ? selectedVoice.name : "null");
   }, [selectedVoice]);
 
   const loadVoices = useCallback(() => {
@@ -45,17 +45,16 @@ export default function VoiceInterface() {
       setVoicesLoaded(true);
       return;
     }
-    const voices = window.speechSynthesis.getVoices();
-    console.log(`[LoadVoices] Attempting to load voices. Found ${voices.length} voices initially.`);
+    const allAvailableVoices = window.speechSynthesis.getVoices();
+    console.log(`[LoadVoices] Attempting to load voices. Found ${allAvailableVoices.length} voices initially.`);
 
-    if (voices.length === 0) {
+    if (allAvailableVoices.length === 0) {
       if (window.speechSynthesis.onvoiceschanged === undefined) {
-        console.warn("[LoadVoices] No voices found and onvoiceschanged not supported. App will try to use system default. Marking voices as loaded.");
+        console.warn("[LoadVoices] No voices found yet, and onvoiceschanged event not supported by browser. App will try to use system default if any. Marking voices as loaded.");
       } else {
-        console.log("[LoadVoices] No voices found yet, but onvoiceschanged is supported. Waiting for event.");
+        console.log("[LoadVoices] No voices found yet, but onvoiceschanged is supported. Waiting for event to populate voices.");
       }
-      // CRITICAL: Ensure voicesLoaded is true so app can attempt TTS with system defaults.
-      setVoicesLoaded(true);
+      setVoicesLoaded(true); // CRITICAL: Must set true so app can attempt TTS with system defaults or wait for onvoiceschanged.
       return;
     }
 
@@ -66,27 +65,32 @@ export default function VoiceInterface() {
       "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
     ];
 
-    const enUSVoices = voices.filter(v => v.lang.startsWith("en-US"));
+    const enUSVoices = allAvailableVoices.filter(v => v.lang.startsWith("en-US"));
+    console.log(`[LoadVoices] Found ${enUSVoices.length} en-US voices.`);
     targetVoice = enUSVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
 
     if (!targetVoice && enUSVoices.length > 0) {
       targetVoice = enUSVoices.find(v => v.default) || enUSVoices[0];
+      console.log(`[LoadVoices] No specific female en-US voice found. Selected default or first en-US voice: ${targetVoice?.name}`);
     }
 
     if (!targetVoice) {
-      const enVoices = voices.filter(v => v.lang.startsWith("en"));
+      const enVoices = allAvailableVoices.filter(v => v.lang.startsWith("en"));
+      console.log(`[LoadVoices] No en-US voice match. Found ${enVoices.length} 'en' (any region) voices.`);
       targetVoice = enVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
-      if(!targetVoice && enVoices.length > 0) {
-          targetVoice = enVoices.find(v => v.default) || enVoices[0];
+      if (!targetVoice && enVoices.length > 0) {
+        targetVoice = enVoices.find(v => v.default) || enVoices[0];
+        console.log(`[LoadVoices] No specific female 'en' voice found. Selected default or first 'en' voice: ${targetVoice?.name}`);
       }
     }
     
-    if (!targetVoice && voices.length > 0) {
-        targetVoice = voices.find(v => v.default) || voices[0];
+    if (!targetVoice && allAvailableVoices.length > 0) {
+        targetVoice = allAvailableVoices.find(v => v.default) || allAvailableVoices[0];
+        console.log(`[LoadVoices] No English voice match. Selected system default or first available voice: ${targetVoice?.name}`);
     }
 
     setSelectedVoice(targetVoice);
-    console.log("[LoadVoices] Selected voice:", targetVoice ? targetVoice.name : "None (will use browser default/fallback)");
+    console.log("[LoadVoices] Final selected voice by loadVoices:", targetVoice ? targetVoice.name : "None (will use browser default/fallback)");
     setVoicesLoaded(true);
   }, [speechApiSupported, setSelectedVoice, setVoicesLoaded]);
 
@@ -94,7 +98,7 @@ export default function VoiceInterface() {
   useEffect(() => {
     console.log("[VoiceInitEffect] Running voice initialization effect.");
     if (typeof window === "undefined") {
-      console.log("[VoiceInitEffect] Window is undefined. Setting speechApiSupported=false, voicesLoaded=true.");
+      console.log("[VoiceInitEffect] Window is undefined. Setting speechApiSupported=false, voicesLoaded=true (to unblock).");
       setSpeechApiSupported(false);
       setVoicesLoaded(true);
       return;
@@ -104,9 +108,9 @@ export default function VoiceInterface() {
     const browserSupportsSpeechSynthesis = !!window.speechSynthesis;
 
     if (!browserSupportsSpeechRecognition || !browserSupportsSpeechSynthesis) {
-      console.log("[VoiceInitEffect] Browser does not support required Speech APIs. speechApiSupported=false, voicesLoaded=true.");
+      console.warn("[VoiceInitEffect] Browser does not support required Speech APIs. speechApiSupported=false, voicesLoaded=true.");
       setSpeechApiSupported(false);
-      setVoicesLoaded(true);
+      setVoicesLoaded(true); 
       toast({
         title: "Browser Not Supported",
         description: "Your browser does not support the Web Speech API needed for voice interaction. This app requires voice.",
@@ -121,16 +125,16 @@ export default function VoiceInterface() {
 
     if (browserSupportsSpeechSynthesis) {
       console.log("[VoiceInitEffect] Attempting initial voice load by calling loadVoices().");
-      loadVoices(); // Initial attempt to load voices
+      loadVoices(); 
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
         console.log("[VoiceInitEffect] Setting onvoiceschanged handler.");
         window.speechSynthesis.onvoiceschanged = loadVoices;
       } else {
-         console.warn("[VoiceInitEffect] onvoiceschanged not supported by browser. Relied on initial loadVoices call to set voicesLoaded.");
+         console.warn("[VoiceInitEffect] onvoiceschanged not supported by browser. Relied on initial loadVoices call. voicesLoaded should be true from that call.");
       }
     } else {
-      console.warn("[VoiceInitEffect] Speech synthesis explicitly not supported. This should have been caught. Setting voicesLoaded=true.");
-      setVoicesLoaded(true);
+      console.warn("[VoiceInitEffect] Speech synthesis explicitly not supported (this should have been caught earlier). Setting voicesLoaded=true.");
+      setVoicesLoaded(true); // Should be redundant if speechApiSupported is false.
     }
 
     return () => {
@@ -156,8 +160,8 @@ export default function VoiceInterface() {
       if (onEndCallback) onEndCallback();
       return;
     }
-
-    console.log(`[Speak] Attempting to speak. Text (first 50 chars): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}". Voices loaded: ${voicesLoaded}. Selected voice: ${selectedVoice?.name || "None"}`);
+    
+    console.log(`[Speak] Attempting to speak. Text (first 50 chars): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}". Voices loaded (state): ${voicesLoaded}. Selected voice (state): ${selectedVoice?.name || "None"}`);
     
     if (!speechApiSupported || !window.speechSynthesis) {
       console.warn("[Speak] Speech synthesis not supported or not initialized. Aborting.");
@@ -166,7 +170,6 @@ export default function VoiceInterface() {
       return;
     }
 
-    // Unconditionally cancel any ongoing or queued speech
     try {
       console.log("[Speak] Unconditionally cancelling any existing speech synthesis.");
       window.speechSynthesis.cancel();
@@ -174,21 +177,53 @@ export default function VoiceInterface() {
       console.warn("[Speak] Error during unconditional cancel:", cancelError);
     }
     
-    // Check if voices are available in the browser at the moment of speaking
-    if (window.speechSynthesis.getVoices().length === 0) {
-      console.warn("[Speak] CRITICAL: No speech synthesis voices available in the browser at the moment of speaking. Playback will likely fail or use a very basic default.");
+    let voiceForUtterance: SpeechSynthesisVoice | null = selectedVoice;
+
+    if (!voiceForUtterance) {
+        console.warn("[Speak] selectedVoice (from state) is null. Attempting direct lookup for a fallback voice.");
+        const allVoicesNow = window.speechSynthesis.getVoices();
+        console.log(`[Speak] Direct lookup: Found ${allVoicesNow.length} voices at this moment.`);
+        if (allVoicesNow.length > 0) {
+            const femaleVoiceKeywords = [
+              "female", "woman", "girl", "samantha", "allison", "susan", "zoe", "victoria", "tessa",
+              "linda", "heather", "eva", "jessa", "zira", "lucy", "anna", "claire", "emily",
+              "olivia", "sophia", "google us english", "microsoft zira", "microsoft jessa"
+            ];
+            const enUSVoices = allVoicesNow.filter(v => v.lang.startsWith("en-US"));
+            let foundDirectly = enUSVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
+            if (!foundDirectly && enUSVoices.length > 0) {
+              foundDirectly = enUSVoices.find(v => v.default) || enUSVoices[0];
+            }
+            if (!foundDirectly) {
+              const enVoices = allVoicesNow.filter(v => v.lang.startsWith("en"));
+              foundDirectly = enVoices.find(v => femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))) || null;
+              if(!foundDirectly && enVoices.length > 0) {
+                  foundDirectly = enVoices.find(v => v.default) || enVoices[0];
+              }
+            }
+            if (!foundDirectly) {
+                foundDirectly = allVoicesNow.find(v => v.default) || allVoicesNow[0];
+            }
+            if (foundDirectly) {
+                console.log(`[Speak] Direct lookup successful. Using voice: ${foundDirectly.name}`);
+                voiceForUtterance = foundDirectly;
+            } else {
+                console.warn("[Speak] Direct lookup failed to find any voice.");
+            }
+        } else {
+            console.warn("[Speak] CRITICAL: No speech synthesis voices available in the browser even with direct lookup. Playback will likely fail.");
+        }
     }
         
     const utterance = new SpeechSynthesisUtterance(text);
-    console.log(`[Speak] Current selectedVoice before assigning to utterance:`, selectedVoice ? { name: selectedVoice.name, lang: selectedVoice.lang, default: selectedVoice.default } : "null");
-
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-      utterance.lang = selectedVoice.lang; 
-      console.log(`[Speak] Using selected voice for utterance: ${selectedVoice.name} (Lang: ${selectedVoice.lang}, Default: ${selectedVoice.default})`);
+    
+    if (voiceForUtterance) {
+      utterance.voice = voiceForUtterance;
+      utterance.lang = voiceForUtterance.lang; 
+      console.log(`[Speak] Using voice for utterance: ${voiceForUtterance.name} (Lang: ${voiceForUtterance.lang}, Default: ${voiceForUtterance.default})`);
     } else {
       utterance.lang = "en-US"; 
-      console.warn(`[Speak] selectedVoice is null. Utterance lang explicitly set to '${utterance.lang}'. Attempting to use a system default voice.`);
+      console.warn(`[Speak] No voiceForUtterance (neither from state nor direct lookup). Utterance lang explicitly set to '${utterance.lang}'. Attempting to use a system default voice.`);
     }
 
     utterance.onstart = () => {
@@ -223,7 +258,8 @@ export default function VoiceInterface() {
       console.log("  - Utterance Text (first 100 chars):", `"${text.substring(0,100)}${text.length > 100 ? "..." : ""}"`);
       console.log("  - Utterance Voice (at time of error):", utterance.voice ? { name: utterance.voice.name, lang: utterance.voice.lang, default: utterance.voice.default } : "Not set (using browser default)");
       console.log("  - Utterance Lang (at time of error):", utterance.lang);
-      console.log("  - Global Selected System Voice (at time of error):", selectedVoice ? { name: selectedVoice.name, lang: selectedVoice.lang, default: selectedVoice.default } : "None selected / voices not loaded");
+      console.log("  - Global Selected System Voice (state at time of error):", selectedVoice ? { name: selectedVoice.name, lang: selectedVoice.lang, default: selectedVoice.default } : "None selected / voices not loaded");
+      console.log("  - Voice used for this utterance attempt:", voiceForUtterance ? { name: voiceForUtterance.name, lang: voiceForUtterance.lang, default: voiceForUtterance.default } : "None / Fallback Lang");
       console.groupEnd();
       
       if (errorCode !== 'canceled' && errorCode !== 'interrupted') {
@@ -354,6 +390,7 @@ export default function VoiceInterface() {
 
     const recognition = speechRecognitionRef.current;
 
+    // Define handlers inside useEffect to capture current state/props if they are not in deps
     const onResultHandler = (event: SpeechRecognitionEvent) => {
       console.log("[SR onresult] Received result. Skylar speaking:", window.speechSynthesis.speaking);
       if (window.speechSynthesis.speaking) {
@@ -525,12 +562,11 @@ export default function VoiceInterface() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [speechApiSupported, handleUserSpeech, toast, isListening, isLoadingAIResponse, setIsListening, setIsSkylarSpeaking, setCurrentTranscript]);
+  }, [speechApiSupported, handleUserSpeech, toast, isListening, isSkylarSpeaking, isLoadingAIResponse, setIsListening, setIsSkylarSpeaking, setCurrentTranscript]); // Key state values these handlers depend on.
 
 
   // Effect for Session Initiation (Greeting)
-  useEffect(() => {
-    const initiateSessionAsyncInternal = async () => {
+  const initiateSessionAsyncInternal = useCallback(async () => {
       console.log("[SessionInitFunc] Entered initiateSessionAsyncInternal.");
       if (sessionInitiatedRef.current) {
         console.log("[SessionInitFunc] Aborting: Session already initiated flag is true.");
@@ -552,7 +588,7 @@ export default function VoiceInterface() {
         const greetingMessage = { id: `skylar-greeting-${Date.now()}`, speaker: "skylar" as const, text: aiResult.skylarResponse, icon: Brain };
         setChatHistory(prev => {
             const hasSystemNoVoiceMessage = prev.some(msg => msg.id.startsWith('system-no-voice-'));
-            if (hasSystemNoVoiceMessage && greetingMessage.text.includes("Voice interaction is not supported")) {
+            if (hasSystemNoVoiceMessage && greetingMessage.text.includes("Voice interaction is not supported")) { // Defensive check
                 return prev;
             }
             if (prev.some(msg => msg.id.startsWith('skylar-greeting-'))) {
@@ -573,16 +609,17 @@ export default function VoiceInterface() {
         setIsLoadingAIResponse(false);
         console.log("[SessionInitFunc] Finished. isLoadingAIResponse set to false.");
       }
-    };
-    
+    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory]); // Dependencies of the async function itself
+
+  useEffect(() => {
     console.log(`[SessionAttemptEffect] Evaluating conditions. Supported: ${speechApiSupported}, VoicesLoaded: ${voicesLoaded}, InitiatedRef: ${sessionInitiatedRef.current}, LoadingAI: ${isLoadingAIResponse}`);
     if (speechApiSupported && voicesLoaded && !sessionInitiatedRef.current && !isLoadingAIResponse) {
-      console.log("[SessionAttemptEffect] Conditions met. Initiating session.");
+      console.log("[SessionAttemptEffect] Conditions met. Initiating session by calling initiateSessionAsyncInternal().");
       initiateSessionAsyncInternal();
     } else {
       console.log(`[SessionAttemptEffect] Did not call initiateSessionAsyncInternal. Reasons: speechApiSupported=${speechApiSupported}, voicesLoaded=${voicesLoaded}, sessionInitiatedRef.current=${sessionInitiatedRef.current}, isLoadingAIResponse=${isLoadingAIResponse}`);
     }
-  }, [speechApiSupported, voicesLoaded, isLoadingAIResponse, speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory]);
+  }, [speechApiSupported, voicesLoaded, isLoadingAIResponse, initiateSessionAsyncInternal]);
 
 
   const toggleListening = async () => {
@@ -715,7 +752,7 @@ export default function VoiceInterface() {
         </Button>
         {(!speechApiSupported && voicesLoaded) && ( 
              <p className="text-xs text-destructive text-center mt-2">
-                { (chatHistory.length > 0 && chatHistory.some(msg => msg.id.startsWith('system-no-voice-'))) || !speechApiSupported
+                { (chatHistory.some(msg => msg.id.startsWith('system-no-voice-')))
                   ? "Voice interaction is not supported by your browser. This app requires voice functionality."
                   : "Voice APIs may not be fully supported by this browser. Please check settings or try another browser."
                 }
@@ -730,4 +767,6 @@ export default function VoiceInterface() {
     </div>
   );
 }
+    
+
     
