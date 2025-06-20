@@ -23,7 +23,7 @@ export async function textToSpeech(text: string): Promise<TextToSpeechOutput> {
       speechConfig: {
         voiceConfig: {
           // A friendly, natural female voice.
-          prebuiltVoiceConfig: {voiceName: 'Alloy'},
+          prebuiltVoiceConfig: {voiceName: 'erinome'},
         },
       },
     },
