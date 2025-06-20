@@ -1,37 +1,37 @@
 'use server';
 /**
- * @fileOverview A voice conversation with Skylar, the AI therapist.
+ * @fileOverview A voice conversation with iSkylar, the AI therapist.
  *
- * - voiceConversationWithSkylar - A function that handles the conversation with Skylar.
- * - VoiceConversationWithSkylarInput - The input type for the voiceConversationWithSkylar function.
- * - VoiceConversationWithSkylarOutput - The return type for the voiceConversationWithSkylar function.
+ * - voiceConversationWithISkylar - A function that handles the conversation with iSkylar.
+ * - VoiceConversationWithISkylarInput - The input type for the voiceConversationWithISkylar function.
+ * - VoiceConversationWithISkylarOutput - The return type for the voiceConversationWithISkylar function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const VoiceConversationWithSkylarInputSchema = z.object({
-  userInput: z.string().describe('The user input from voice. Can be "SKYLAR_SESSION_START" to initiate the session, or "USER_INTERRUPTED" if the user spoke while Skylar was speaking.'),
+const VoiceConversationWithISkylarInputSchema = z.object({
+  userInput: z.string().describe('The user input from voice. Can be "ISKYLAR_SESSION_START" to initiate the session, or "USER_INTERRUPTED" if the user spoke while iSkylar was speaking.'),
   sessionState: z.string().optional().describe('A JSON string representing the session state, including mood patterns, progress, previously mentioned goals, and user name if known. The AI should aim to update this state and return it.'),
 });
-export type VoiceConversationWithSkylarInput = z.infer<typeof VoiceConversationWithSkylarInputSchema>;
+export type VoiceConversationWithISkylarInput = z.infer<typeof VoiceConversationWithISkylarInputSchema>;
 
-const VoiceConversationWithSkylarOutputSchema = z.object({
-  skylarResponse: z.string().describe('Skylar’s response to the user.'),
-  updatedSessionState: z.string().optional().describe('The updated JSON string for the session state after Skylar’s response.'),
+const VoiceConversationWithISkylarOutputSchema = z.object({
+  skylarResponse: z.string().describe('iSkylar’s response to the user.'),
+  updatedSessionState: z.string().optional().describe('The updated JSON string for the session state after iSkylar’s response.'),
 });
-export type VoiceConversationWithSkylarOutput = z.infer<typeof VoiceConversationWithSkylarOutputSchema>;
+export type VoiceConversationWithISkylarOutput = z.infer<typeof VoiceConversationWithISkylarOutputSchema>;
 
-export async function voiceConversationWithSkylar(input: VoiceConversationWithSkylarInput): Promise<VoiceConversationWithSkylarOutput> {
-  return voiceConversationWithSkylarFlow(input);
+export async function voiceConversationWithISkylar(input: VoiceConversationWithISkylarInput): Promise<VoiceConversationWithISkylarOutput> {
+  return voiceConversationWithISkylarFlow(input);
 }
 
 // This prompt is based on the "Development Prompt" provided in the PRD.
 const prompt = ai.definePrompt({
-  name: 'voiceConversationWithSkylarPrompt',
-  input: {schema: VoiceConversationWithSkylarInputSchema},
-  output: {schema: VoiceConversationWithSkylarOutputSchema},
-  prompt: `You are Skylar, a compassionate, voice-enabled AI Therapist. Your purpose is to engage users in supportive, therapeutic conversations to enhance mental wellness. Respond in natural, warm, and empathetic language. Speak using human-like natural voice.
+  name: 'voiceConversationWithISkylarPrompt',
+  input: {schema: VoiceConversationWithISkylarInputSchema},
+  output: {schema: VoiceConversationWithISkylarOutputSchema},
+  prompt: `You are iSkylar, a compassionate, voice-enabled AI Therapist. Your purpose is to engage users in supportive, therapeutic conversations to enhance mental wellness. Respond in natural, warm, and empathetic language. Speak using human-like natural voice.
 
 You are trained on evidence-based modalities including CBT, DBT, ACT, and Mindfulness-Based Therapy. You’re not a licensed professional but serve as a helpful, therapeutic companion. You respond with depth and precision, always prioritizing emotional safety and user well-being.
 
@@ -47,8 +47,8 @@ Key Instructions:
 - Track mood patterns, progress, and previously mentioned goals by incorporating information from and updating the \`sessionState\`. Ensure \`updatedSessionState\` reflects these changes.
 
 Session Flow:
-1.  If \`userInput\` is "SKYLAR_SESSION_START" and (\`sessionState\` is empty or undefined):
-    Begin the session with a gentle emotional check-in. Your response MUST BE: "Hi, I’m Skylar. I’m really glad you’re here today. How are you feeling emotionally right now?" Do not add any other conversational text in this specific greeting response. Initialize \`updatedSessionState\` if needed.
+1.  If \`userInput\` is "ISKYLAR_SESSION_START" and (\`sessionState\` is empty or undefined):
+    Begin the session with a gentle emotional check-in. Your response MUST BE: "Hi, I’m iSkylar. I’m really glad you’re here today. How are you feeling emotionally right now?" Do not add any other conversational text in this specific greeting response. Initialize \`updatedSessionState\` if needed.
 
 2.  For subsequent user inputs after the initial greeting:
     Listen actively. Validate their stated feeling and follow up with an open-ended question. For example, if they say "I feel X", you might respond: “That sounds really (difficult/frustrating/etc., matching X). What do you think is contributing most to that feeling today?”
@@ -79,13 +79,13 @@ Based on the user input and session state, provide \`skylarResponse\` and \`upda
 `,
 });
 
-const voiceConversationWithSkylarFlow = ai.defineFlow(
+const voiceConversationWithISkylarFlow = ai.defineFlow(
   {
-    name: 'voiceConversationWithSkylarFlow',
-    inputSchema: VoiceConversationWithSkylarInputSchema,
-    outputSchema: VoiceConversationWithSkylarOutputSchema,
+    name: 'voiceConversationWithISkylarFlow',
+    inputSchema: VoiceConversationWithISkylarInputSchema,
+    outputSchema: VoiceConversationWithISkylarOutputSchema,
   },
-  async (input: VoiceConversationWithSkylarInput) => {
+  async (input: VoiceConversationWithISkylarInput) => {
     const {output} = await prompt(input);
     // Ensure output is not null, providing a default if it is.
     if (!output) {

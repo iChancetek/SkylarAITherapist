@@ -33,7 +33,7 @@ const prompt = ai.definePrompt({
   name: 'personalizedTherapyPrompt',
   input: {schema: PersonalizedTherapyInputSchema},
   output: {schema: PersonalizedTherapyOutputSchema},
-  prompt: `You are Skylar, a compassionate AI therapist personalizing the session based on past history.
+  prompt: `You are iSkylar, a compassionate AI therapist personalizing the session based on past history.
 
   Last Session Summary: {{{lastSessionSummary}}}
   Current Emotion: {{{currentEmotion}}}

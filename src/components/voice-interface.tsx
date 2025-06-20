@@ -9,13 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mic, MicOff, Loader2, User, Brain, AlertTriangle } from "lucide-react";
-import { voiceConversationWithSkylar, type VoiceConversationWithSkylarInput } from "@/ai/flows/ai-therapy";
+import { voiceConversationWithISkylar, type VoiceConversationWithISkylarInput } from "@/ai/flows/ai-therapy";
 import { safetyNetActivation, type SafetyNetActivationInput } from "@/ai/flows/safety-net";
 import { useToast } from "@/hooks/use-toast";
 
 interface ChatMessage {
   id: string;
-  speaker: "user" | "skylar" | "system";
+  speaker: "user" | "iSkylar" | "system";
   text: string;
   icon?: React.ElementType;
 }
@@ -288,14 +288,14 @@ export default function VoiceInterface() {
         console.log(`[Speak handleSpeakEndOrError] Called. recognitionWasActiveAndWillBeRestarted: ${recognitionWasActiveAndWillBeRestarted}, isListening (state): ${isListening}`);
         manuallyStoppedRef.current = false; 
         if (recognitionWasActiveAndWillBeRestarted && speechRecognitionRef.current && isListening) {
-            console.log("[Speak handleSpeakEndOrError] Skylar finished or errored, attempting to restart recognition after a short delay.");
+            console.log("[Speak handleSpeakEndOrError] iSkylar finished or errored, attempting to restart recognition after a short delay.");
             setTimeout(() => {
                 if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) { 
                     console.log("[Speak handleSpeakEndOrError] Delay complete, calling recognition.start().");
                     try {
                         speechRecognitionRef.current.start();
                     } catch (e) {
-                        console.warn("[Speak handleSpeakEndOrError] Could not restart recognition after Skylar speech/error", e);
+                        console.warn("[Speak handleSpeakEndOrError] Could not restart recognition after iSkylar speech/error", e);
                     }
                 } else {
                      console.log("[Speak handleSpeakEndOrError] Conditions for restarting recognition no longer met after delay.");
@@ -333,13 +333,13 @@ export default function VoiceInterface() {
       if (errorCode !== 'canceled' && errorCode !== 'interrupted' && errorCode !== 'not-allowed') { 
         toast({
           title: "Speech Error",
-          description: `Could not play Skylar's response. (Error: ${errorCode})`,
+          description: `Could not play iSkylar's response. (Error: ${errorCode})`,
           variant: "destructive",
         });
       } else if (errorCode === 'not-allowed') {
          toast({
           title: "Speech Playback Issue",
-          description: `Skylar's voice may be blocked by your browser. Try interacting with the page first (e.g., click). (Error: ${errorCode})`,
+          description: `iSkylar's voice may be blocked by your browser. Try interacting with the page first (e.g., click). (Error: ${errorCode})`,
           variant: "destructive",
         });
       }
@@ -383,7 +383,7 @@ export default function VoiceInterface() {
 
     if (error instanceof Error) {
       if (error.message.includes("Service Unavailable") || error.message.includes("overloaded") || (error.message.includes("503") && error.message.includes("model"))) {
-        errorMessage = "Skylar is currently experiencing high demand and is temporarily unavailable. Please try again in a few moments.";
+        errorMessage = "iSkylar is currently experiencing high demand and is temporarily unavailable. Please try again in a few moments.";
         errorTitle = "Service Temporarily Busy";
       } else if (error.message.includes("API key not valid")) {
           errorMessage = "There seems to be an issue with the AI service configuration. Please contact support.";
@@ -414,16 +414,16 @@ export default function VoiceInterface() {
       sessionInitiatedRef.current = true;
       setIsLoadingAIResponse(true);
       try {
-        console.log("[SessionInitFunc] Calling voiceConversationWithSkylar for SKYLAR_SESSION_START.");
-        const aiInput: VoiceConversationWithSkylarInput = { userInput: "SKYLAR_SESSION_START", sessionState: undefined };
-        const aiResult = await voiceConversationWithSkylar(aiInput);
+        console.log("[SessionInitFunc] Calling voiceConversationWithISkylar for ISKYLAR_SESSION_START.");
+        const aiInput: VoiceConversationWithISkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
+        const aiResult = await voiceConversationWithISkylar(aiInput);
         console.log("[SessionInitFunc] AI call successful. Response:", aiResult.skylarResponse.substring(0,50)+"...");
 
         setSessionState(aiResult.updatedSessionState);
 
-        const greetingMessage = { id: `skylar-greeting-${Date.now()}`, speaker: "skylar" as const, text: aiResult.skylarResponse, icon: Brain };
+        const greetingMessage = { id: `iskylar-greeting-${Date.now()}`, speaker: "iSkylar" as const, text: aiResult.skylarResponse, icon: Brain };
         setChatHistory(prev => {
-            if (prev.some(msg => msg.id.startsWith('skylar-greeting-'))) {
+            if (prev.some(msg => msg.id.startsWith('iskylar-greeting-'))) {
                 console.warn("[SessionInitFunc] Duplicate greeting detected by ID. Not adding again.");
                 return prev;
             }
@@ -460,14 +460,14 @@ export default function VoiceInterface() {
         return; 
       }
 
-      const aiInput: VoiceConversationWithSkylarInput = { userInput, sessionState };
-      const aiResult = await voiceConversationWithSkylar(aiInput);
+      const aiInput: VoiceConversationWithISkylarInput = { userInput, sessionState };
+      const aiResult = await voiceConversationWithISkylar(aiInput);
 
       setSessionState(aiResult.updatedSessionState);
-      setChatHistory(prev => [...prev, { id: `skylar-${Date.now()}`, speaker: "skylar", text: aiResult.skylarResponse, icon: Brain }]);
+      setChatHistory(prev => [...prev, { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.skylarResponse, icon: Brain }]);
       
       speak(aiResult.skylarResponse, () => {
-          console.log("[handleUserSpeech speak callback] Skylar finished speaking response. Ensuring recognition attempts to restart if conditions met.");
+          console.log("[handleUserSpeech speak callback] iSkylar finished speaking response. Ensuring recognition attempts to restart if conditions met.");
           if (speechRecognitionRef.current && isListening && !manuallyStoppedRef.current) {
               console.log("[handleUserSpeech speak callback] Conditions appear met. Attempting to start recognition via setTimeout for safety.");
               setTimeout(() => { 
@@ -542,9 +542,9 @@ export default function VoiceInterface() {
 
 
     const onResultHandler = (event: SpeechRecognitionEvent) => {
-      console.log("[SR onresult] Received result. Skylar speaking:", window.speechSynthesis.speaking);
+      console.log("[SR onresult] Received result. iSkylar speaking:", window.speechSynthesis.speaking);
       if (window.speechSynthesis.speaking) {
-        console.log("[SR onresult] Skylar is speaking, cancelling her speech due to user input (interruption).");
+        console.log("[SR onresult] iSkylar is speaking, cancelling her speech due to user input (interruption).");
         window.speechSynthesis.cancel(); 
         setIsSkylarSpeaking(false);
         manuallyStoppedRef.current = false; 
@@ -680,7 +680,7 @@ export default function VoiceInterface() {
 
     const onEndHandler = () => {
       const currentRecognitionOnEnd = speechRecognitionRef.current;
-      console.log("[SR onend] Recognition ended. Manually stopped:", manuallyStoppedRef.current, "IsListening:", isListening, "Skylar Speaking:", isSkylarSpeaking, "Loading AI:", isLoadingAIResponse);
+      console.log("[SR onend] Recognition ended. Manually stopped:", manuallyStoppedRef.current, "IsListening:", isListening, "iSkylar Speaking:", isSkylarSpeaking, "Loading AI:", isLoadingAIResponse);
       
       if (manuallyStoppedRef.current) {
         console.log("[SR onend] Recognition was stopped intentionally (e.g., user toggle, TTS, final result). No auto-restart from onEnd handler.");
@@ -702,7 +702,7 @@ export default function VoiceInterface() {
           }
         }
       } else {
-          console.log("[SR onend] Recognition ended, but not auto-restarting based on current conditions (e.g. user stopped, Skylar speaking, AI loading, etc.).");
+          console.log("[SR onend] Recognition ended, but not auto-restarting based on current conditions (e.g. user stopped, iSkylar speaking, AI loading, etc.).");
       }
     };
 
@@ -751,7 +751,7 @@ export default function VoiceInterface() {
       }
       setIsListening(false);
       if (window.speechSynthesis.speaking) {
-        console.log("[ToggleListening] Skylar was speaking, cancelling her speech as user turned off mic.");
+        console.log("[ToggleListening] iSkylar was speaking, cancelling her speech as user turned off mic.");
         window.speechSynthesis.cancel();
         setIsSkylarSpeaking(false);
       }
@@ -759,7 +759,7 @@ export default function VoiceInterface() {
       console.log("[ToggleListening] Starting listening (isListening was false). Setting manuallyStoppedRef=false.");
       manuallyStoppedRef.current = false; 
       if (window.speechSynthesis.speaking) {
-         console.log("[ToggleListening] Skylar was speaking, cancelling her speech because user wants to talk.");
+         console.log("[ToggleListening] iSkylar was speaking, cancelling her speech because user wants to talk.");
         window.speechSynthesis.cancel();
         setIsSkylarSpeaking(false);
       }
@@ -772,7 +772,7 @@ export default function VoiceInterface() {
             await initiateSessionAsyncInternal(); 
         } else {
             console.warn("[ToggleListening] First mic click, but voices not loaded yet (checked via ref). Greeting will be skipped or delayed.");
-            toast({title: "Voice System Initializing", description: "Skylar's voice is still warming up. Please try clicking the mic again in a moment.", variant: "default"})
+            toast({title: "Voice System Initializing", description: "iSkylar's voice is still warming up. Please try clicking the mic again in a moment.", variant: "default"})
             return; 
         }
       }
@@ -817,9 +817,9 @@ export default function VoiceInterface() {
   
   let footerMessage = "";
   if (isLoadingAIResponse) {
-    footerMessage = "Skylar is thinking...";
+    footerMessage = "iSkylar is thinking...";
   } else if (isSkylarSpeaking) {
-    footerMessage = "Skylar is speaking...";
+    footerMessage = "iSkylar is speaking...";
   } else if (isListening) {
     footerMessage = "Listening...";
   } else {
@@ -836,7 +836,7 @@ export default function VoiceInterface() {
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
       <header className="mb-6 flex flex-col items-center text-center">
         {/* Avatar removed as per revert request */}
-        <h1 className="text-4xl font-headline font-bold text-primary">Skylar</h1>
+        <h1 className="text-4xl font-headline font-bold text-primary">iSkylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
       </header>
 
@@ -847,7 +847,7 @@ export default function VoiceInterface() {
               key={msg.id}
               className={`w-fit max-w-[85%] rounded-xl shadow-md ${
                 msg.speaker === "user" ? "ml-auto bg-accent text-accent-foreground" :
-                msg.speaker === "skylar" ? "bg-card text-card-foreground border border-primary/30" : 
+                msg.speaker === "iSkylar" ? "bg-card text-card-foreground border border-primary/30" : 
                 "bg-destructive/20 text-destructive-foreground mx-auto border-destructive" 
               }`}
             >
@@ -855,7 +855,7 @@ export default function VoiceInterface() {
                 <div className="flex items-start space-x-2">
                   {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
                     msg.speaker === "user" ? "text-accent-foreground" :
-                    msg.speaker === "skylar" ? "text-primary" :
+                    msg.speaker === "iSkylar" ? "text-primary" :
                     "text-destructive"
                   }`} />}
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
@@ -913,4 +913,3 @@ export default function VoiceInterface() {
     </div>
   );
 }
-
