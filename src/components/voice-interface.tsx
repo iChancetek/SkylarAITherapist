@@ -831,16 +831,7 @@ export default function VoiceInterface() {
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
       <header className="mb-6 flex flex-col items-center text-center">
-        <Avatar className="w-24 h-24 mb-4 border-2 border-primary shadow-lg">
-          <AvatarImage
-            src="https://placehold.co/200x200.png"
-            alt="Skylar, AI Voice Therapist"
-            data-ai-hint="therapist african-american woman" 
-          />
-          <AvatarFallback>
-            <Brain className="w-12 h-12 text-primary" />
-          </AvatarFallback>
-        </Avatar>
+        {/* Avatar removed as per revert request */}
         <h1 className="text-4xl font-headline font-bold text-primary">Skylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
       </header>
@@ -918,4 +909,3 @@ export default function VoiceInterface() {
     </div>
   );
 }
-
