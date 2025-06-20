@@ -32,7 +32,7 @@ export default function VoiceInterface() {
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const manuallyStoppedRef = useRef(false);
-  const sessionInitiatedRef = useRef(false);
+  const sessionInitiatedRef = useRef(false); // Ref to ensure session initiation runs once
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,6 +94,7 @@ export default function VoiceInterface() {
     setVoicesLoaded(true);
   }, [speechApiSupported, setSelectedVoice, setVoicesLoaded]);
 
+
   // Effect for Voice API Initialization (SpeechSynthesis related)
   useEffect(() => {
     console.log("[VoiceInitEffect] Running voice initialization effect.");
@@ -125,7 +126,7 @@ export default function VoiceInterface() {
 
     if (browserSupportsSpeechSynthesis) {
       console.log("[VoiceInitEffect] Attempting initial voice load by calling loadVoices().");
-      loadVoices(); 
+      loadVoices(); // Call loadVoices immediately
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
         console.log("[VoiceInitEffect] Setting onvoiceschanged handler.");
         window.speechSynthesis.onvoiceschanged = loadVoices;
@@ -134,7 +135,7 @@ export default function VoiceInterface() {
       }
     } else {
       console.warn("[VoiceInitEffect] Speech synthesis explicitly not supported (this should have been caught earlier). Setting voicesLoaded=true.");
-      setVoicesLoaded(true); // Should be redundant if speechApiSupported is false.
+      setVoicesLoaded(true);
     }
 
     return () => {
@@ -226,6 +227,10 @@ export default function VoiceInterface() {
       console.warn(`[Speak] No voiceForUtterance (neither from state nor direct lookup). Utterance lang explicitly set to '${utterance.lang}'. Attempting to use a system default voice.`);
     }
 
+    utterance.volume = 1; // Explicitly set volume
+    utterance.rate = 1;   // Explicitly set rate
+    utterance.pitch = 1;  // Explicitly set pitch
+
     utterance.onstart = () => {
         console.log("[Speak] Utterance started successfully.");
         setIsSkylarSpeaking(true);
@@ -279,7 +284,9 @@ export default function VoiceInterface() {
       }
     };
     
-    console.log(`[Speak] Preparing to call window.speechSynthesis.speak(). Utterance details - Text: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice?.name || 'Default'}`);
+    console.log(`[Speak] Preparing to call window.speechSynthesis.speak(). Utterance details - Text: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice?.name || 'Default'}, Volume: ${utterance.volume}, Rate: ${utterance.rate}, Pitch: ${utterance.pitch}`);
+    console.log(`[Speak] SpeechSynthesis state before speak(): speaking=${window.speechSynthesis.speaking}, pending=${window.speechSynthesis.pending}`);
+
     try {
       window.speechSynthesis.speak(utterance);
     } catch (speakError: any) {
@@ -390,7 +397,7 @@ export default function VoiceInterface() {
 
     const recognition = speechRecognitionRef.current;
 
-    // Define handlers inside useEffect to capture current state/props if they are not in deps
+    // Define handlers inside useEffect to capture current state/props
     const onResultHandler = (event: SpeechRecognitionEvent) => {
       console.log("[SR onresult] Received result. Skylar speaking:", window.speechSynthesis.speaking);
       if (window.speechSynthesis.speaking) {
@@ -562,20 +569,20 @@ export default function VoiceInterface() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [speechApiSupported, handleUserSpeech, toast, isListening, isSkylarSpeaking, isLoadingAIResponse, setIsListening, setIsSkylarSpeaking, setCurrentTranscript]); // Key state values these handlers depend on.
+  }, [speechApiSupported, handleUserSpeech, toast, isListening, isSkylarSpeaking, isLoadingAIResponse, setIsListening, setIsSkylarSpeaking, setCurrentTranscript]); 
 
 
   // Effect for Session Initiation (Greeting)
   const initiateSessionAsyncInternal = useCallback(async () => {
       console.log("[SessionInitFunc] Entered initiateSessionAsyncInternal.");
-      if (sessionInitiatedRef.current) {
+      if (sessionInitiatedRef.current) { // Check the ref
         console.log("[SessionInitFunc] Aborting: Session already initiated flag is true.");
         return;
       }
       
       console.log("[SessionInitFunc] Conditions met. Proceeding with AI call...");
       
-      sessionInitiatedRef.current = true; 
+      sessionInitiatedRef.current = true; // Set the ref
       setIsLoadingAIResponse(true);
       try {
         console.log("[SessionInitFunc] Calling voiceConversationWithSkylar for SKYLAR_SESSION_START.");
@@ -609,7 +616,7 @@ export default function VoiceInterface() {
         setIsLoadingAIResponse(false);
         console.log("[SessionInitFunc] Finished. isLoadingAIResponse set to false.");
       }
-    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory]); // Dependencies of the async function itself
+    }, [speak, handleGenericError, setSessionState, setIsLoadingAIResponse, setChatHistory]);
 
   useEffect(() => {
     console.log(`[SessionAttemptEffect] Evaluating conditions. Supported: ${speechApiSupported}, VoicesLoaded: ${voicesLoaded}, InitiatedRef: ${sessionInitiatedRef.current}, LoadingAI: ${isLoadingAIResponse}`);
