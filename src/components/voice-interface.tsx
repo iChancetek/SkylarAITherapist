@@ -30,8 +30,6 @@ export default function VoiceInterface() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
-  const transcriptRef = useRef("");
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
 
@@ -95,31 +93,21 @@ export default function VoiceInterface() {
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
-    recognition.interimResults = true;
-    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.continuous = false;
 
     recognition.onstart = () => {
         setIsListening(true);
-        transcriptRef.current = "";
     };
     
     recognition.onend = () => {
         setIsListening(false);
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-        }
-        const transcriptToSend = transcriptRef.current.trim();
-        if (transcriptToSend) {
-            handleSendMessage(transcriptToSend);
-        }
     };
     
     recognition.onerror = (event) => {
         setIsListening(false);
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-        }
         if (event.error === 'no-speech' || event.error === 'aborted') {
+            console.log("Speech recognition stopped or aborted, will restart if needed.");
             return;
         }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -131,33 +119,21 @@ export default function VoiceInterface() {
     };
 
     recognition.onresult = (event) => {
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+            handleSendMessage(transcript);
         }
-
-        let transcript = "";
-        for (let i = 0; i < event.results.length; ++i) {
-            transcript += event.results[i][0].transcript;
-        }
-        transcriptRef.current = transcript;
-        
-        silenceTimerRef.current = setTimeout(() => {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
-        }, 1500); // 1.5 seconds of silence
     };
     
     recognition.start();
   }, [toast, handleSendMessage]);
   
-  // This effect manages the conversational turn-taking.
   useEffect(() => {
-    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isListening;
+    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing && !isListening;
     if (shouldBeListening) {
       startListening();
     }
-  }, [sessionStarted, isSpeaking, isSending, isListening, startListening]);
+  }, [sessionStarted, isSpeaking, isSending, isListening, startListening, isInitializing]);
   
   const handleStartSession = useCallback(async () => {
     setIsInitializing(true);
@@ -183,14 +159,12 @@ export default function VoiceInterface() {
     }
   }, [toast, playAudioResponse]);
   
-  // scroll chat history
   useEffect(() => {
     if (chatHistoryRef.current) {
         chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [chatHistory]);
 
-  // audio ended listener
   useEffect(() => {
     const currentAudio = audioRef.current;
     const onEnded = () => {
@@ -207,7 +181,6 @@ export default function VoiceInterface() {
     };
   }, []);
   
-  // cleanup on unmount
   useEffect(() => {
     return () => {
         if (recognitionRef.current) {
