@@ -9,6 +9,7 @@ import { askiSkylar, type iSkylarInput } from "@/ai/flows/ai-therapy";
 import { safetyNetActivation } from "@/ai/flows/safety-net";
 import { textToSpeech } from "@/ai/flows/tts";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface ChatMessage {
   id: string;
@@ -21,7 +22,8 @@ export default function VoiceInterface() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
@@ -39,34 +41,32 @@ export default function VoiceInterface() {
     }
   }, [chatHistory]);
 
-  useEffect(() => {
-    const initiateSession = async () => {
-      setIsInitializing(true);
-      try {
-        const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
-        const aiResult = await askiSkylar(aiInput);
-        setSessionState(aiResult.updatedSessionState);
-        const greetingMessage = {
-          id: `iskylar-greeting-${Date.now()}`,
-          speaker: "iSkylar",
-          text: aiResult.iSkylarResponse,
-          icon: Brain
-        };
-        setChatHistory([greetingMessage]);
-        await playAudioResponse(greetingMessage.text);
-      } catch (error) {
-        console.error("Error during session initiation:", error);
-        toast({
-          title: "AI Error",
-          description: "Could not start the session with iSkylar. Please refresh.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    initiateSession();
-  }, [toast]);
+  const handleStartSession = async () => {
+    setIsInitializing(true);
+    try {
+      const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
+      const aiResult = await askiSkylar(aiInput);
+      setSessionState(aiResult.updatedSessionState);
+      const greetingMessage = {
+        id: `iskylar-greeting-${Date.now()}`,
+        speaker: "iSkylar",
+        text: aiResult.iSkylarResponse,
+        icon: Brain
+      };
+      setChatHistory([greetingMessage]);
+      await playAudioResponse(greetingMessage.text);
+    } catch (error) {
+      console.error("Error during session initiation:", error);
+      toast({
+        title: "AI Error",
+        description: "Could not start the session with iSkylar. Please refresh.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsInitializing(false);
+      setSessionStarted(true);
+    }
+  };
   
   const playAudioResponse = async (text: string) => {
     if (!text) return;
@@ -157,10 +157,10 @@ export default function VoiceInterface() {
   };
   
   useEffect(() => {
-    if (!isSpeaking && !isSending && !isInitializing) {
+    if (sessionStarted && !isSpeaking && !isSending && !isInitializing) {
       handleVoiceInput();
     }
-  }, [isSpeaking, isSending, isInitializing]);
+  }, [sessionStarted, isSpeaking, isSending, isInitializing]);
 
   useEffect(() => {
     const currentAudio = audioRef.current;
@@ -202,53 +202,73 @@ export default function VoiceInterface() {
         <h1 className="text-4xl font-headline font-bold text-primary">iSkylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
       </header>
-
-      <ScrollArea className="flex-grow mb-4 pr-4" ref={chatHistoryRef}>
-        <div className="space-y-4">
-          {chatHistory.map((msg) => (
-            <Card
-              key={msg.id}
-              className={`w-fit max-w-[85%] rounded-xl shadow-md ${
-                msg.speaker === "user" ? "ml-auto bg-accent text-accent-foreground" :
-                msg.speaker === "iSkylar" ? "bg-card text-card-foreground border border-primary/30" : 
-                "bg-destructive/20 text-destructive-foreground mx-auto border-destructive" 
-              }`}
-            >
-              <CardContent className="p-3">
-                <div className="flex items-start space-x-2">
-                  {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
-                    msg.speaker === "user" ? "text-accent-foreground" :
-                    msg.speaker === "iSkylar" ? "text-primary" :
-                    "text-destructive"
-                  }`} />}
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-           {(isSending || isInitializing) && (
-             <div className="flex items-center space-x-2 p-4">
-                <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
-                <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
-             </div>
-           )}
-        </div>
-      </ScrollArea>
-
-      <footer className="flex flex-col items-center justify-center pt-4 border-t border-border h-28">
-         <div 
-            className={`flex items-center justify-center w-20 h-20 rounded-full border-2 transition-colors duration-300 ${
-              isListening ? 'border-primary animate-pulse-lg' : 'border-border'
-            }`}
-          >
-            <Mic className={`transition-colors duration-300 ${
-              isListening ? 'text-primary' : 'text-muted-foreground'
-            }`} size={40} />
-          </div>
-          <p className="text-sm text-muted-foreground mt-2 h-5">
-            {!isSending && !isInitializing && getStatusText()}
+      
+      {!sessionStarted ? (
+        <div className="flex flex-col flex-grow items-center justify-center">
+          <Button onClick={handleStartSession} disabled={isInitializing} size="lg">
+            {isInitializing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              "Start Session"
+            )}
+          </Button>
+          <p className="text-sm text-muted-foreground mt-4">
+            Click to begin your session with iSkylar.
           </p>
-      </footer>
+        </div>
+      ) : (
+        <>
+          <ScrollArea className="flex-grow mb-4 pr-4" ref={chatHistoryRef}>
+            <div className="space-y-4">
+              {chatHistory.map((msg) => (
+                <Card
+                  key={msg.id}
+                  className={`w-fit max-w-[85%] rounded-xl shadow-md ${
+                    msg.speaker === "user" ? "ml-auto bg-accent text-accent-foreground" :
+                    msg.speaker === "iSkylar" ? "bg-card text-card-foreground border border-primary/30" : 
+                    "bg-destructive/20 text-destructive-foreground mx-auto border-destructive" 
+                  }`}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start space-x-2">
+                      {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
+                        msg.speaker === "user" ? "text-accent-foreground" :
+                        msg.speaker === "iSkylar" ? "text-primary" :
+                        "text-destructive"
+                      }`} />}
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+               {(isSending || isInitializing) && (
+                 <div className="flex items-center space-x-2 p-4">
+                    <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
+                    <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
+                 </div>
+               )}
+            </div>
+          </ScrollArea>
+    
+          <footer className="flex flex-col items-center justify-center pt-4 border-t border-border h-28">
+             <div 
+                className={`flex items-center justify-center w-20 h-20 rounded-full border-2 transition-colors duration-300 ${
+                  isListening ? 'border-primary animate-pulse-lg' : 'border-border'
+                }`}
+              >
+                <Mic className={`transition-colors duration-300 ${
+                  isListening ? 'text-primary' : 'text-muted-foreground'
+                }`} size={40} />
+              </div>
+              <p className="text-sm text-muted-foreground mt-2 h-5">
+                {!isSending && !isInitializing && getStatusText()}
+              </p>
+          </footer>
+        </>
+      )}
     </div>
   );
 }
