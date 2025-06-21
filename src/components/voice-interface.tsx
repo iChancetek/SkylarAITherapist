@@ -32,23 +32,55 @@ export default function VoiceInterface() {
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef("");
   
-  const sessionStartedRef = useRef(sessionStarted);
-  const isSpeakingRef = useRef(isSpeaking);
-  const isSendingRef = useRef(isSending);
-
-  useEffect(() => {
-    sessionStartedRef.current = sessionStarted;
-    isSpeakingRef.current = isSpeaking;
-    isSendingRef.current = isSending;
-  }, [sessionStarted, isSpeaking, isSending]);
-
   const { toast } = useToast();
-  
-  const startListening = useCallback(() => {
-    if (isSpeakingRef.current || isSendingRef.current || !sessionStartedRef.current) {
-        return;
-    }
 
+  const playAudioResponse = useCallback(async (text: string) => {
+    if (!text) {
+      return;
+    };
+    setIsSpeaking(true);
+    try {
+        const { audioDataUri } = await textToSpeech(text);
+        if (audioRef.current) {
+            audioRef.current.src = audioDataUri;
+            await audioRef.current.play();
+        }
+    } catch (error) {
+        console.error("Error playing audio response:", error);
+        toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
+        setIsSpeaking(false);
+    }
+  }, [toast]);
+
+  const handleSendMessage = useCallback(async (userInput: string) => {
+    const finalUserInput = userInput.trim();
+    if (!finalUserInput || !sessionStarted) return;
+
+    setIsSending(true);
+    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
+    
+    try {
+        const safetyResult = await safetyNetActivation({ userInput: finalUserInput });
+        if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
+            const safetyMessage = { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle };
+            setChatHistory(prev => [...prev, safetyMessage]);
+            await playAudioResponse(safetyMessage.text);
+        } else {
+            const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
+            setSessionState(aiResult.updatedSessionState);
+            const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
+            setChatHistory(prev => [...prev, iSkylarMessage]);
+            await playAudioResponse(iSkylarMessage.text);
+        }
+    } catch (error) {
+        console.error("Error sending message:", error);
+        toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+    } finally {
+        setIsSending(false);
+    }
+  }, [sessionState, toast, sessionStarted, playAudioResponse]);
+
+  const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
         toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API.", variant: "destructive" });
@@ -74,10 +106,6 @@ export default function VoiceInterface() {
         const finalTranscript = transcriptRef.current.trim();
         if (finalTranscript) {
             handleSendMessage(finalTranscript);
-        } else {
-            if (sessionStartedRef.current && !isSpeakingRef.current && !isSendingRef.current) {
-                startListening();
-            }
         }
     };
     
@@ -99,84 +127,15 @@ export default function VoiceInterface() {
     };
     
     recognition.start();
-  }, [toast]);
-
-  const playAudioResponse = useCallback(async (text: string) => {
-    if (!text) {
-      if (sessionStartedRef.current) startListening();
-      return;
-    };
-    setIsSpeaking(true);
-    try {
-        const { audioDataUri } = await textToSpeech(text);
-        if (audioRef.current) {
-            audioRef.current.src = audioDataUri;
-            await audioRef.current.play();
-        }
-    } catch (error) {
-        console.error("Error playing audio response:", error);
-        toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
-        setIsSpeaking(false);
-        if (sessionStartedRef.current) startListening();
-    }
-  }, [toast, startListening]);
+  }, [toast, handleSendMessage]);
   
-  const handleSendMessage = useCallback(async (userInput: string) => {
-    const finalUserInput = userInput.trim();
-    if (!finalUserInput) return;
-
-    setIsSending(true);
-    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
-    
-    try {
-        const safetyResult = await safetyNetActivation({ userInput: finalUserInput });
-        if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
-            const safetyMessage = { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle };
-            setChatHistory(prev => [...prev, safetyMessage]);
-            await playAudioResponse(safetyMessage.text);
-        } else {
-            const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
-            setSessionState(aiResult.updatedSessionState);
-            const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
-            setChatHistory(prev => [...prev, iSkylarMessage]);
-            await playAudioResponse(iSkylarMessage.text);
-        }
-    } catch (error) {
-        console.error("Error sending message:", error);
-        toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
-        setIsSending(false);
-        if (sessionStartedRef.current) {
-            startListening();
-        }
-    } finally {
-        setIsSending(false);
-    }
-  }, [sessionState, toast, playAudioResponse, startListening]);
-
+  // This effect manages the conversational turn-taking.
   useEffect(() => {
-    if (chatHistoryRef.current) {
-        chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
+    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isListening;
+    if (shouldBeListening) {
+      startListening();
     }
-  }, [chatHistory]);
-
-  useEffect(() => {
-    const currentAudio = audioRef.current;
-    const onEnded = () => {
-        setIsSpeaking(false);
-        if (sessionStartedRef.current) {
-            startListening();
-        }
-    };
-
-    if (currentAudio) {
-        currentAudio.addEventListener('ended', onEnded);
-    }
-    return () => {
-        if (currentAudio) {
-            currentAudio.removeEventListener('ended', onEnded);
-        }
-    };
-  }, [startListening]);
+  }, [sessionStarted, isSpeaking, isSending, isListening, startListening]);
   
   const handleStartSession = useCallback(async () => {
     setIsInitializing(true);
@@ -202,9 +161,36 @@ export default function VoiceInterface() {
     }
   }, [toast, playAudioResponse]);
   
+  // scroll chat history
+  useEffect(() => {
+    if (chatHistoryRef.current) {
+        chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [chatHistory]);
+
+  // audio ended listener
+  useEffect(() => {
+    const currentAudio = audioRef.current;
+    const onEnded = () => {
+        setIsSpeaking(false);
+    };
+
+    if (currentAudio) {
+        currentAudio.addEventListener('ended', onEnded);
+    }
+    return () => {
+        if (currentAudio) {
+            currentAudio.removeEventListener('ended', onEnded);
+        }
+    };
+  }, []);
+  
+  // cleanup on unmount
   useEffect(() => {
     return () => {
-        recognitionRef.current?.abort();
+        if (recognitionRef.current) {
+          recognitionRef.current.abort();
+        }
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.src = "";
@@ -221,7 +207,7 @@ export default function VoiceInterface() {
     if (isListening) return "Listening...";
     return "Ready.";
   }
-
+  
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
       <audio ref={audioRef} />
