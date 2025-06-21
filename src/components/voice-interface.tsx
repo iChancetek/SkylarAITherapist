@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, User, Brain, AlertTriangle, Loader2 } from "lucide-react";
@@ -41,33 +41,6 @@ export default function VoiceInterface() {
     }
   }, [chatHistory]);
 
-  const handleStartSession = async () => {
-    setIsInitializing(true);
-    try {
-      const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
-      const aiResult = await askiSkylar(aiInput);
-      setSessionState(aiResult.updatedSessionState);
-      const greetingMessage = {
-        id: `iskylar-greeting-${Date.now()}`,
-        speaker: "iSkylar",
-        text: aiResult.iSkylarResponse,
-        icon: Brain
-      };
-      setChatHistory([greetingMessage]);
-      await playAudioResponse(greetingMessage.text);
-    } catch (error) {
-      console.error("Error during session initiation:", error);
-      toast({
-        title: "AI Error",
-        description: "Could not start the session with iSkylar. Please refresh.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsInitializing(false);
-      setSessionStarted(true);
-    }
-  };
-  
   const playAudioResponse = async (text: string) => {
     if (!text) return;
     try {
@@ -82,8 +55,8 @@ export default function VoiceInterface() {
     }
   };
 
-  const handleSendMessage = async (userInput: string) => {
-    if (!userInput || isSending) return;
+  const handleSendMessage = useCallback(async (userInput: string) => {
+    if (!userInput) return;
 
     setIsSending(true);
     setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: userInput, icon: User }]);
@@ -109,10 +82,10 @@ export default function VoiceInterface() {
     } finally {
       setIsSending(false);
     }
-  };
-
-  const handleVoiceInput = () => {
-    if (isListening) return;
+  }, [sessionState, toast]);
+  
+  const handleVoiceInput = useCallback(() => {
+    if (isListening || isSending || isSpeaking) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -135,15 +108,17 @@ export default function VoiceInterface() {
       setIsListening(false);
       if (transcriptRef.current) {
         handleSendMessage(transcriptRef.current);
+      } else {
+        handleVoiceInput();
       }
     };
     
     recognition.onerror = (event) => {
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
         let errorMessage = "An unknown error occurred with voice recognition.";
-         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-           errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
-         }
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
+        }
         toast({ title: "Voice Error", description: errorMessage, variant: "destructive" });
       }
       setIsListening(false);
@@ -153,39 +128,70 @@ export default function VoiceInterface() {
       transcriptRef.current = event.results[event.results.length - 1][0].transcript;
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Error starting speech recognition:", e);
+      toast({ title: "Voice Error", description: "Could not start listening. Please check microphone permissions and refresh.", variant: "destructive" });
+    }
+  }, [isListening, isSending, isSpeaking, toast, handleSendMessage]);
+  
+  const handleStartSession = async () => {
+    setIsInitializing(true);
+    try {
+      const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
+      const aiResult = await askiSkylar(aiInput);
+      setSessionState(aiResult.updatedSessionState);
+      const greetingMessage = {
+        id: `iskylar-greeting-${Date.now()}`,
+        speaker: "iSkylar",
+        text: aiResult.iSkylarResponse,
+        icon: Brain
+      };
+      setChatHistory([greetingMessage]);
+      await playAudioResponse(greetingMessage.text);
+      setSessionStarted(true);
+    } catch (error) {
+      console.error("Error during session initiation:", error);
+      toast({
+        title: "AI Error",
+        description: "Could not start the session with iSkylar. Please refresh.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsInitializing(false);
+    }
   };
   
-  useEffect(() => {
-    if (sessionStarted && !isSpeaking && !isSending && !isInitializing) {
-      handleVoiceInput();
-    }
-  }, [sessionStarted, isSpeaking, isSending, isInitializing]);
-
   useEffect(() => {
     const currentAudio = audioRef.current;
     const onPlay = () => setIsSpeaking(true);
     const onPause = () => setIsSpeaking(false);
-    const onEnded = () => setIsSpeaking(false);
+    const onAudioEnded = () => {
+      setIsSpeaking(false);
+      handleVoiceInput();
+    };
 
     if (currentAudio) {
       currentAudio.addEventListener('play', onPlay);
       currentAudio.addEventListener('pause', onPause);
-      currentAudio.addEventListener('ended', onEnded);
+      currentAudio.addEventListener('ended', onAudioEnded);
     }
 
     return () => {
       if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
         recognitionRef.current.stop();
+        recognitionRef.current = null;
       }
       if (currentAudio) {
         currentAudio.removeEventListener('play', onPlay);
         currentAudio.removeEventListener('pause', onPause);
-        currentAudio.removeEventListener('ended', onEnded);
+        currentAudio.removeEventListener('ended', onAudioEnded);
         currentAudio.pause();
       }
     };
-  }, []);
+  }, [handleVoiceInput]);
   
   const getStatusText = () => {
     if (isInitializing) return "Contacting iSkylar...";
