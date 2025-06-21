@@ -31,6 +31,7 @@ export default function VoiceInterface() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef("");
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
 
@@ -94,23 +95,30 @@ export default function VoiceInterface() {
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.continuous = true;
 
-    transcriptRef.current = "";
-
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => {
+        setIsListening(true);
+        transcriptRef.current = "";
+    };
     
     recognition.onend = () => {
         setIsListening(false);
-        const finalTranscript = transcriptRef.current.trim();
-        if (finalTranscript) {
-            handleSendMessage(finalTranscript);
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
+        const transcriptToSend = transcriptRef.current.trim();
+        if (transcriptToSend) {
+            handleSendMessage(transcriptToSend);
         }
     };
     
     recognition.onerror = (event) => {
         setIsListening(false);
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
         if (event.error === 'no-speech' || event.error === 'aborted') {
             return;
         }
@@ -123,7 +131,21 @@ export default function VoiceInterface() {
     };
 
     recognition.onresult = (event) => {
-        transcriptRef.current = event.results[event.results.length - 1][0].transcript;
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
+
+        let transcript = "";
+        for (let i = 0; i < event.results.length; ++i) {
+            transcript += event.results[i][0].transcript;
+        }
+        transcriptRef.current = transcript;
+        
+        silenceTimerRef.current = setTimeout(() => {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+        }, 1500); // 1.5 seconds of silence
     };
     
     recognition.start();
