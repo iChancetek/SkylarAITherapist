@@ -44,7 +44,10 @@ export default function VoiceInterface() {
   }, [chatHistory]);
 
   const playAudioResponse = useCallback(async (text: string) => {
-    if (!text) return;
+    if (!text) {
+      if (sessionStarted) startListeningRef.current();
+      return;
+    };
     setIsSpeaking(true);
     try {
       const { audioDataUri } = await textToSpeech(text);
@@ -56,8 +59,9 @@ export default function VoiceInterface() {
       console.error("Error playing audio response:", error);
       toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
       setIsSpeaking(false);
+      if (sessionStarted) startListeningRef.current();
     }
-  }, [toast]);
+  }, [toast, sessionStarted]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -117,26 +121,27 @@ export default function VoiceInterface() {
     try {
       const safetyResult = await safetyNetActivation({ userInput: finalUserInput });
       if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
-        setChatHistory(prev => [...prev, { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle }]);
-        setIsSending(false);
-        startListeningRef.current();
-        return;
+        const safetyMessage = { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle };
+        setChatHistory(prev => [...prev, safetyMessage]);
+        await playAudioResponse(safetyMessage.text);
+      } else {
+        const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
+        setSessionState(aiResult.updatedSessionState);
+        const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
+        setChatHistory(prev => [...prev, iSkylarMessage]);
+        await playAudioResponse(iSkylarMessage.text);
       }
-
-      const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
-      setSessionState(aiResult.updatedSessionState);
-      const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
-      setChatHistory(prev => [...prev, iSkylarMessage]);
-      await playAudioResponse(iSkylarMessage.text);
 
     } catch (error) {
       console.error("Error sending message:", error);
       toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
-      startListeningRef.current();
+      if (sessionStarted) {
+        startListeningRef.current();
+      }
     } finally {
       setIsSending(false);
     }
-  }, [sessionState, toast, playAudioResponse]);
+  }, [sessionState, toast, playAudioResponse, sessionStarted]);
   
   useEffect(() => {
     startListeningRef.current = startListening;
