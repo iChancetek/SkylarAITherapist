@@ -31,7 +31,7 @@ export default function VoiceInterface() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
-  const transcriptRef = useRef("");
+  const transcriptRef = useRef(""); // To accumulate final transcript
 
   const { toast } = useToast();
 
@@ -56,29 +56,30 @@ export default function VoiceInterface() {
       setIsSpeaking(false);
     }
   }, [toast]);
-
+  
   const handleSendMessage = useCallback(async (userInput: string) => {
-    if (!userInput.trim()) return;
-    
+    const finalUserInput = userInput.trim();
+    if (!finalUserInput) return;
+
     if (audioRef.current && !audioRef.current.paused) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
     setIsSpeaking(false);
-
     setIsSending(true);
     setInputValue("");
-    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: userInput, icon: User }]);
+    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
     
     try {
-      const safetyResult = await safetyNetActivation({ userInput });
+      const safetyResult = await safetyNetActivation({ userInput: finalUserInput });
       if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
         setChatHistory(prev => [...prev, { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle }]);
         setIsSending(false);
+        // Don't play safety message out loud for privacy
         return;
       }
 
-      const aiResult = await askiSkylar({ userInput, sessionState });
+      const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
       setSessionState(aiResult.updatedSessionState);
       const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
       setChatHistory(prev => [...prev, iSkylarMessage]);
@@ -92,14 +93,15 @@ export default function VoiceInterface() {
       setIsSending(false);
     }
   }, [sessionState, toast, playAudioResponse]);
-
+  
   const handleVoiceInput = useCallback(() => {
     if (isListening) {
       recognitionRef.current?.stop();
-      setIsListening(false);
+      // Let the 'onend' handler take care of sending the message.
       return;
     }
 
+    // Interrupt iSkylar if she is speaking
     if (audioRef.current && !audioRef.current.paused) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -116,17 +118,31 @@ export default function VoiceInterface() {
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = true;
+    recognition.continuous = false; // More responsive for turn-taking
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
+    transcriptRef.current = ""; // Reset transcript for new utterance
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setInputValue(""); // Clear text area when listening starts
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+      // Send the message automatically when the user stops talking
+      if (transcriptRef.current.trim()) {
+        handleSendMessage(transcriptRef.current);
+      }
+    };
     
     recognition.onerror = (event) => {
       let errorMessage = "An unknown error occurred with voice recognition.";
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         errorMessage = "Microphone access denied. Please allow microphone access in your browser settings.";
       } else if (event.error === 'no-speech') {
-        errorMessage = "No speech was detected. Please try again.";
+        // This is normal if user just stops talking, onend will handle it.
+        // Don't show a toast for this common case.
+        return;
       }
       toast({ title: "Voice Error", description: errorMessage, variant: "destructive" });
       setIsListening(false);
@@ -134,19 +150,31 @@ export default function VoiceInterface() {
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
+      let finalTranscript = "";
+
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          transcriptRef.current += event.results[i][0].transcript + ' ';
+          finalTranscript += event.results[i][0].transcript;
         } else {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      setInputValue(transcriptRef.current + interimTranscript);
+      
+      transcriptRef.current = finalTranscript;
+      setInputValue(finalTranscript + interimTranscript);
     };
     
-    transcriptRef.current = "";
     recognition.start();
-  }, [isListening, toast]);
+  }, [isListening, toast, handleSendMessage]);
+
+  // Handle interruption from typing
+  const handleTypingInterruption = () => {
+    if (isSpeaking && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setIsSpeaking(false);
+    }
+  };
   
   const startSession = useCallback(async () => {
     setIsInitializing(true);
@@ -171,8 +199,25 @@ export default function VoiceInterface() {
   }, [toast, playAudioResponse]);
   
   useEffect(() => {
-    startSession();
-  }, [startSession]);
+    // Only run this once
+    const sessionStarted = sessionStorage.getItem('sessionStarted');
+    if (!sessionStarted) {
+      startSession();
+      sessionStorage.setItem('sessionStarted', 'true');
+    } else {
+        setIsInitializing(false);
+        // If there's history, maybe we restore it or start fresh.
+        // For now, start fresh but don't play the greeting again.
+        if(chatHistory.length === 0){
+             setChatHistory([{
+                id: `iskylar-welcome-back-${Date.now()}`,
+                speaker: "iSkylar",
+                text: "Welcome back. We can continue where we left off, or start somewhere new. What's on your mind?",
+                icon: Brain
+            }]);
+        }
+    }
+  }, [startSession, chatHistory.length]);
 
   useEffect(() => {
     const currentAudio = audioRef.current;
@@ -180,7 +225,7 @@ export default function VoiceInterface() {
 
     if (currentAudio) {
       currentAudio.addEventListener('ended', onEnded);
-      currentAudio.addEventListener('pause', onEnded);
+      currentAudio.addEventListener('pause', onEnded); // Also stop when paused
     }
 
     return () => {
@@ -198,7 +243,7 @@ export default function VoiceInterface() {
     if (isSending) return "iSkylar is thinking...";
     if (isSpeaking) return "iSkylar is speaking...";
     if (isListening) return "Listening...";
-    return "Ready";
+    return "Ready. Speak or type your message.";
   }
 
   return (
@@ -232,7 +277,7 @@ export default function VoiceInterface() {
               </CardContent>
             </Card>
           ))}
-            {(isSending || isInitializing) && (
+            {(isSending || isInitializing) && !isListening && (
               <div className="flex items-center space-x-2 p-4">
                 <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
                 <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
@@ -244,7 +289,10 @@ export default function VoiceInterface() {
         <div className="relative">
           <Textarea
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              handleTypingInterruption();
+              setInputValue(e.target.value);
+            }}
             placeholder="Type your message, or use the mic..."
             className="pr-24"
             rows={2}
@@ -254,20 +302,21 @@ export default function VoiceInterface() {
                 handleSendMessage(inputValue);
               }
             }}
+            disabled={isListening}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
              <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleVoiceInput}
-                disabled={isSending || isInitializing || isSpeaking}
+                disabled={isSending || isInitializing}
               >
                 {isListening ? <Square className="text-destructive" /> : <Mic />}
               </Button>
               <Button
                 size="icon"
                 onClick={() => handleSendMessage(inputValue)}
-                disabled={isSending || isInitializing || !inputValue.trim() || isSpeaking}
+                disabled={isSending || isInitializing || !inputValue.trim()}
               >
                 <Send />
               </Button>
