@@ -31,46 +31,33 @@ export default function VoiceInterface() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef("");
-
-  const { toast } = useToast();
-
-  const handleSendMessageRef = useRef(async (userInput: string) => {});
-  const startListeningRef = useRef(() => {});
+  
+  const sessionStartedRef = useRef(sessionStarted);
+  const isSpeakingRef = useRef(isSpeaking);
+  const isSendingRef = useRef(isSending);
 
   useEffect(() => {
-    if (chatHistoryRef.current) {
-      chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [chatHistory]);
+    sessionStartedRef.current = sessionStarted;
+    isSpeakingRef.current = isSpeaking;
+    isSendingRef.current = isSending;
+  }, [sessionStarted, isSpeaking, isSending]);
 
-  const playAudioResponse = useCallback(async (text: string) => {
-    if (!text) {
-      if (sessionStarted) startListeningRef.current();
-      return;
-    };
-    setIsSpeaking(true);
-    try {
-      const { audioDataUri } = await textToSpeech(text);
-      if (audioRef.current) {
-        audioRef.current.src = audioDataUri;
-        await audioRef.current.play();
-      }
-    } catch (error) {
-      console.error("Error playing audio response:", error);
-      toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
-      setIsSpeaking(false);
-      if (sessionStarted) startListeningRef.current();
-    }
-  }, [toast, sessionStarted]);
-
+  const { toast } = useToast();
+  
   const startListening = useCallback(() => {
+    if (isSpeakingRef.current || isSendingRef.current || !sessionStartedRef.current) {
+        return;
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API.", variant: "destructive" });
-      return;
+        toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API.", variant: "destructive" });
+        return;
     }
-    
-    if (recognitionRef.current && isListening) return;
+
+    if (recognitionRef.current) {
+        recognitionRef.current.abort();
+    }
 
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
@@ -83,34 +70,57 @@ export default function VoiceInterface() {
     recognition.onstart = () => setIsListening(true);
     
     recognition.onend = () => {
-      setIsListening(false);
-      if (transcriptRef.current.trim()) {
-        handleSendMessageRef.current(transcriptRef.current);
-      } else if (sessionStarted) {
-        startListeningRef.current();
-      }
+        setIsListening(false);
+        const finalTranscript = transcriptRef.current.trim();
+        if (finalTranscript) {
+            handleSendMessage(finalTranscript);
+        } else {
+            if (sessionStartedRef.current && !isSpeakingRef.current && !isSendingRef.current) {
+                startListening();
+            }
+        }
     };
     
     recognition.onerror = (event) => {
-      if (event.error === 'no-speech') {
-        return;
-      }
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        toast({ title: "Voice Error", description: "Microphone access denied.", variant: "destructive" });
-        setSessionStarted(false);
-      } else {
-        toast({ title: "Voice Error", description: "An error occurred with voice recognition.", variant: "destructive" });
-      }
-      setIsListening(false);
+        setIsListening(false);
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+            return;
+        }
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            toast({ title: "Voice Error", description: "Microphone access denied.", variant: "destructive" });
+            setSessionStarted(false);
+        } else {
+            toast({ title: "Voice Error", description: `Voice recognition error: ${event.error}`, variant: "destructive" });
+        }
     };
 
     recognition.onresult = (event) => {
-      transcriptRef.current = event.results[event.results.length - 1][0].transcript;
+        transcriptRef.current = event.results[event.results.length - 1][0].transcript;
     };
     
     recognition.start();
-  }, [isListening, sessionStarted, toast]);
+  }, [toast]);
 
+  const playAudioResponse = useCallback(async (text: string) => {
+    if (!text) {
+      if (sessionStartedRef.current) startListening();
+      return;
+    };
+    setIsSpeaking(true);
+    try {
+        const { audioDataUri } = await textToSpeech(text);
+        if (audioRef.current) {
+            audioRef.current.src = audioDataUri;
+            await audioRef.current.play();
+        }
+    } catch (error) {
+        console.error("Error playing audio response:", error);
+        toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
+        setIsSpeaking(false);
+        if (sessionStartedRef.current) startListening();
+    }
+  }, [toast, startListening]);
+  
   const handleSendMessage = useCallback(async (userInput: string) => {
     const finalUserInput = userInput.trim();
     if (!finalUserInput) return;
@@ -119,84 +129,87 @@ export default function VoiceInterface() {
     setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
     
     try {
-      const safetyResult = await safetyNetActivation({ userInput: finalUserInput });
-      if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
-        const safetyMessage = { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle };
-        setChatHistory(prev => [...prev, safetyMessage]);
-        await playAudioResponse(safetyMessage.text);
-      } else {
-        const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
-        setSessionState(aiResult.updatedSessionState);
-        const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
-        setChatHistory(prev => [...prev, iSkylarMessage]);
-        await playAudioResponse(iSkylarMessage.text);
-      }
-
+        const safetyResult = await safetyNetActivation({ userInput: finalUserInput });
+        if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
+            const safetyMessage = { id: `safety-${Date.now()}`, speaker: "system", text: safetyResult.safetyResponse, icon: AlertTriangle };
+            setChatHistory(prev => [...prev, safetyMessage]);
+            await playAudioResponse(safetyMessage.text);
+        } else {
+            const aiResult = await askiSkylar({ userInput: finalUserInput, sessionState });
+            setSessionState(aiResult.updatedSessionState);
+            const iSkylarMessage = { id: `iskylar-${Date.now()}`, speaker: "iSkylar", text: aiResult.iSkylarResponse, icon: Brain };
+            setChatHistory(prev => [...prev, iSkylarMessage]);
+            await playAudioResponse(iSkylarMessage.text);
+        }
     } catch (error) {
-      console.error("Error sending message:", error);
-      toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
-      if (sessionStarted) {
-        startListeningRef.current();
-      }
+        console.error("Error sending message:", error);
+        toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+        setIsSending(false);
+        if (sessionStartedRef.current) {
+            startListening();
+        }
     } finally {
-      setIsSending(false);
+        setIsSending(false);
     }
-  }, [sessionState, toast, playAudioResponse, sessionStarted]);
-  
+  }, [sessionState, toast, playAudioResponse, startListening]);
+
   useEffect(() => {
-    startListeningRef.current = startListening;
-    handleSendMessageRef.current = handleSendMessage;
-  }, [startListening, handleSendMessage]);
+    if (chatHistoryRef.current) {
+        chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [chatHistory]);
 
   useEffect(() => {
     const currentAudio = audioRef.current;
     const onEnded = () => {
-      setIsSpeaking(false);
-      if (sessionStarted) {
-        startListeningRef.current();
-      }
+        setIsSpeaking(false);
+        if (sessionStartedRef.current) {
+            startListening();
+        }
     };
 
     if (currentAudio) {
-      currentAudio.addEventListener('ended', onEnded);
+        currentAudio.addEventListener('ended', onEnded);
     }
     return () => {
-      if (currentAudio) {
-        currentAudio.removeEventListener('ended', onEnded);
-      }
+        if (currentAudio) {
+            currentAudio.removeEventListener('ended', onEnded);
+        }
     };
-  }, [sessionStarted]);
+  }, [startListening]);
   
   const handleStartSession = useCallback(async () => {
     setIsInitializing(true);
     setSessionStarted(true);
     try {
-      const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
-      const aiResult = await askiSkylar(aiInput);
-      setSessionState(aiResult.updatedSessionState);
-      const greetingMessage = {
-        id: `iskylar-greeting-${Date.now()}`,
-        speaker: "iSkylar",
-        text: aiResult.iSkylarResponse,
-        icon: Brain
-      };
-      setChatHistory([greetingMessage]);
-      await playAudioResponse(greetingMessage.text);
+        const aiInput: iSkylarInput = { userInput: "ISKYLAR_SESSION_START", sessionState: undefined };
+        const aiResult = await askiSkylar(aiInput);
+        setSessionState(aiResult.updatedSessionState);
+        const greetingMessage = {
+            id: `iskylar-greeting-${Date.now()}`,
+            speaker: "iSkylar",
+            text: aiResult.iSkylarResponse,
+            icon: Brain
+        };
+        setChatHistory([greetingMessage]);
+        await playAudioResponse(greetingMessage.text);
     } catch (error) {
-      console.error("Error during session initiation:", error);
-      toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
-      setSessionStarted(false);
+        console.error("Error during session initiation:", error);
+        toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
+        setSessionStarted(false);
     } finally {
-      setIsInitializing(false);
+        setIsInitializing(false);
     }
   }, [toast, playAudioResponse]);
   
   useEffect(() => {
     return () => {
-      recognitionRef.current?.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+        recognitionRef.current?.abort();
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+        }
+        setSessionStarted(false);
     };
   }, []);
 
