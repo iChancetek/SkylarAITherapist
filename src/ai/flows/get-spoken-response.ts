@@ -33,6 +33,7 @@ const getSpokenResponseFlow = ai.defineFlow(
         responseText: aiResult.iSkylarResponse,
         audioDataUri: ttsResult.audioDataUri,
         updatedSessionState: aiResult.updatedSessionState,
+        sessionShouldEnd: aiResult.sessionShouldEnd || false,
       };
     }
 
@@ -50,6 +51,7 @@ const getSpokenResponseFlow = ai.defineFlow(
         responseText: safetyResult.safetyResponse,
         audioDataUri: ttsResult.audioDataUri,
         updatedSessionState: input.sessionState, // Session state is not modified by safety net.
+        sessionShouldEnd: false,
       };
     }
 
@@ -61,6 +63,7 @@ const getSpokenResponseFlow = ai.defineFlow(
       responseText: aiResult.iSkylarResponse,
       audioDataUri: ttsResult.audioDataUri,
       updatedSessionState: aiResult.updatedSessionState,
+      sessionShouldEnd: aiResult.sessionShouldEnd || false,
     };
   }
 );

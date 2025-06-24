@@ -11,5 +11,6 @@ export const SpokenResponseOutputSchema = z.object({
   responseText: z.string().describe('iSkylar’s text response to the user.'),
   audioDataUri: z.string().describe('The base64 encoded data URI of the audio response.'),
   updatedSessionState: z.string().optional().describe('The updated JSON string for the session state.'),
+  sessionShouldEnd: z.boolean().optional().describe('Indicates if the session should be gracefully concluded.'),
 });
 export type SpokenResponseOutput = z.infer<typeof SpokenResponseOutputSchema>;

@@ -7,7 +7,8 @@ export const iSkylarInputSchema = z.object({
 export type iSkylarInput = z.infer<typeof iSkylarInputSchema>;
 
 export const iSkylarOutputSchema = z.object({
-  iSkylarResponse: z.string().describe('iSkylar’s response to the user.'),
+  iSkylarResponse: z.string().describe('iSkylar’s response to the user. This should be brief (1-2 sentences) to feel like a real conversation.'),
   updatedSessionState: z.string().optional().describe('The updated JSON string for the session state after iSkylar’s response. This must always be returned.'),
+  sessionShouldEnd: z.boolean().optional().describe('Set to true if the conversation should end based on the user expressing a desire to stop.'),
 });
 export type iSkylarOutput = z.infer<typeof iSkylarOutputSchema>;

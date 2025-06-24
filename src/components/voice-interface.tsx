@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, User, Brain, AlertTriangle, Loader2 } from "lucide-react";
 import { getSpokenResponse } from "@/ai/flows/get-spoken-response";
-import type { SpokenResponseInput } from "@/ai/schema/spoken-response";
+import type { SpokenResponseOutput } from "@/ai/schema/spoken-response";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +33,35 @@ export default function VoiceInterface() {
   
   const { toast } = useToast();
 
+  const playAudioResponse = useCallback(async (response: SpokenResponseOutput) => {
+    if (audioRef.current) {
+      setIsSpeaking(true);
+      audioRef.current.src = response.audioDataUri;
+      audioRef.current.load();
+      
+      try {
+        await audioRef.current.play();
+        await new Promise<void>((resolve) => {
+          const onEnded = () => {
+            audioRef.current?.removeEventListener('ended', onEnded);
+            setIsSpeaking(false);
+            if (response.sessionShouldEnd) {
+              setSessionStarted(false);
+              setSessionState(undefined);
+              setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+            }
+            resolve();
+          };
+          audioRef.current.addEventListener('ended', onEnded);
+        });
+      } catch (e) {
+        console.error("Audio playback error:", e);
+        toast({ title: "Audio Error", description: "Could not play iSkylar's voice.", variant: "destructive" });
+        setIsSpeaking(false);
+      }
+    }
+  }, [toast]);
+  
   const handleSendMessage = useCallback(async (userInput: string) => {
     const finalUserInput = userInput.trim();
     if (!finalUserInput || !sessionStarted) return;
@@ -52,43 +81,15 @@ export default function VoiceInterface() {
         };
         setChatHistory(prev => [...prev, message]);
         
-        setIsSpeaking(true);
-        if (audioRef.current) {
-            audioRef.current.src = response.audioDataUri;
-            audioRef.current.load();
-            
-            await audioRef.current.play();
+        await playAudioResponse(response);
 
-            await new Promise<void>((resolve, reject) => {
-              const onEnded = () => {
-                audioRef.current?.removeEventListener('ended', onEnded);
-                audioRef.current?.removeEventListener('error', onError);
-                resolve();
-              };
-              const onError = (e) => {
-                 audioRef.current?.removeEventListener('ended', onEnded);
-                 audioRef.current?.removeEventListener('error', onError);
-                 console.error("Audio playback error:", e);
-                 toast({ title: "Audio Error", description: "Could not play iSkylar's voice.", variant: "destructive" });
-                 reject(e);
-              }
-
-              if (audioRef.current) {
-                audioRef.current.addEventListener('ended', onEnded);
-                audioRef.current.addEventListener('error', onError);
-              } else {
-                resolve();
-              }
-            });
-        }
     } catch (error) {
         console.error("Error sending message:", error);
         toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
     } finally {
         setIsSending(false);
-        setIsSpeaking(false);
     }
-  }, [sessionState, toast, sessionStarted]);
+  }, [sessionState, toast, sessionStarted, playAudioResponse]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -98,47 +99,40 @@ export default function VoiceInterface() {
     }
 
     if (recognitionRef.current && isListening) {
-        recognitionRef.current.stop();
+      recognitionRef.current.stop();
     }
 
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
     recognition.interimResults = false;
-    recognition.continuous = false; 
+    recognition.continuous = false;
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
     
     recognition.onerror = (event) => {
         setIsListening(false);
-        if (event.error === 'no-speech' || event.error === 'aborted') {
-            return;
-        }
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            toast({ title: "Voice Error", description: "Microphone access denied.", variant: "destructive" });
-            setSessionStarted(false);
-        } else {
-            toast({ title: "Voice Error", description: `Voice recognition error: ${event.error}`, variant: "destructive" });
-        }
+        if (event.error === 'no-speech' || event.error === 'aborted') { return; }
+        const errorMsg = event.error === 'not-allowed' || event.error === 'service-not-allowed'
+          ? "Microphone access denied."
+          : `Voice recognition error: ${event.error}`;
+        toast({ title: "Voice Error", description: errorMsg, variant: "destructive" });
+        if (errorMsg.includes("denied")) setSessionStarted(false);
     };
 
     recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        if (transcript) {
-            handleSendMessage(transcript);
-        }
+        if (transcript) handleSendMessage(transcript);
     };
     
     recognition.start();
   }, [toast, handleSendMessage, isListening]);
   
   useEffect(() => {
-    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing;
-    if (shouldBeListening && !isListening) {
+    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing && !isListening;
+    if (shouldBeListening) {
       startListening();
-    } else if (!shouldBeListening && isListening) {
-      recognitionRef.current?.stop();
     }
   }, [sessionStarted, isSpeaking, isSending, isListening, startListening, isInitializing]);
   
@@ -152,12 +146,12 @@ export default function VoiceInterface() {
         audioRef.current.currentTime = 0;
         audioRef.current.muted = false;
       } catch (e) {
-        console.error("Audio unlock failed, will attempt playback anyway.", e);
-        toast({ title: "Audio Error", description: "Could not initialize audio. Please tap the screen and try again.", variant: "destructive" });
+        console.error("Audio unlock failed.", e);
       }
     }
 
     setIsInitializing(true);
+    setChatHistory([]);
     setSessionStarted(true);
     try {
         const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined });
@@ -171,43 +165,26 @@ export default function VoiceInterface() {
         };
         setChatHistory([greetingMessage]);
         
-        setIsSpeaking(true);
-        if (audioRef.current) {
-          audioRef.current.src = response.audioDataUri;
-          audioRef.current.load();
-          await audioRef.current.play();
-
-          await new Promise<void>((resolve, reject) => {
-              const onEnded = () => {
-                audioRef.current?.removeEventListener('ended', onEnded);
-                audioRef.current?.removeEventListener('error', onError);
-                resolve();
-              };
-               const onError = (e) => {
-                 audioRef.current?.removeEventListener('ended', onEnded);
-                 audioRef.current?.removeEventListener('error', onError);
-                 console.error("Audio playback error:", e);
-                 toast({ title: "Audio Error", description: "Could not play iSkylar's voice.", variant: "destructive" });
-                 reject(e);
-              }
-
-              if (audioRef.current) {
-                audioRef.current.addEventListener('ended', onEnded);
-                audioRef.current.addEventListener('error', onError);
-              } else {
-                resolve();
-              }
-          });
-        }
+        await playAudioResponse(response);
     } catch (error) {
         console.error("Error during session initiation:", error);
         toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
         setSessionStarted(false);
     } finally {
         setIsInitializing(false);
+    }
+  }, [toast, playAudioResponse]);
+  
+  const handleMicClick = useCallback(() => {
+    if (isSpeaking && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
         setIsSpeaking(false);
     }
-  }, [toast]);
+    if (!isListening) {
+        startListening();
+    }
+  }, [isSpeaking, isListening, startListening]);
   
   useEffect(() => {
     if (chatHistoryRef.current) {
@@ -217,9 +194,7 @@ export default function VoiceInterface() {
   
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
+      recognitionRef.current?.abort();
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = "";
@@ -233,7 +208,7 @@ export default function VoiceInterface() {
     if (isSending) return "iSkylar is thinking...";
     if (isSpeaking) return "iSkylar is speaking...";
     if (isListening) return "Listening...";
-    return "Ready.";
+    return "Ready. Tap the microphone to speak.";
   }
   
   return (
@@ -282,9 +257,9 @@ export default function VoiceInterface() {
             Start Session
           </Button>
         ) : (
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <Mic className={`size-8 text-primary ${isListening ? 'animate-pulse-lg' : 'opacity-70'}`} />
-          </div>
+          <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-20 w-20 bg-primary/10 hover:bg-primary/20">
+            <Mic className={`size-10 text-primary transition-opacity ${isListening ? 'animate-pulse-lg' : 'opacity-70'}`} />
+          </Button>
         )}
         <p className="text-sm text-muted-foreground h-4">{getStatusText()}</p>
       </footer>
