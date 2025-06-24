@@ -135,20 +135,17 @@ export default function VoiceInterface() {
   const handleStartSession = useCallback(async () => {
     // --- Audio Unlock for Mobile Browsers ---
     if (audioRef.current && audioRef.current.paused) {
-      audioRef.current.muted = true;
+      // A user-initiated play() call on a valid, silent audio source is required to unlock audio on mobile.
+      audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       try {
-        // A user-initiated play() call is required to unlock audio on mobile.
         await audioRef.current.play();
-        // If it plays, immediately pause it. We don't want to hear the silence.
+        // If it plays without error, the audio context is unlocked.
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       } catch (e) {
-        console.error("Could not unlock audio context:", e);
-        toast({ title: "Audio Error", description: "Could not initialize audio. Please interact with the page and try again.", variant: "destructive" });
-        return; // Stop if audio cannot be unlocked.
-      } finally {
-        // Ensure audio is unmuted for actual playback.
-        audioRef.current.muted = false;
+        console.error("Audio unlock failed, will attempt playback anyway.", e);
+        // We don't toast here because playback in `playAudioResponse` might still succeed.
+        // That function has its own error handling that is visible to the user.
       }
     }
     // --- End Audio Unlock ---
@@ -216,7 +213,7 @@ export default function VoiceInterface() {
   
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
-      <audio ref={audioRef} />
+      <audio ref={audioRef} playsInline />
       <header className="mb-4 flex flex-col items-center text-center">
         <h1 className="text-4xl font-headline font-bold text-primary">iSkylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
