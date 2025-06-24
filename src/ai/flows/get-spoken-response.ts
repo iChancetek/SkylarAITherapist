@@ -24,29 +24,38 @@ const getSpokenResponseFlow = ai.defineFlow(
     outputSchema: SpokenResponseOutputSchema,
   },
   async (input: SpokenResponseInput): Promise<SpokenResponseOutput> => {
-    // 1. Check for safety issues first.
-    // Do not check for safety on the initial greeting.
-    if (input.userInput !== "ISKYLAR_SESSION_START") {
-      const safetyResult = await safetyNetActivation({ userInput: input.userInput });
-      if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
-        // If a safety risk is detected, generate audio for the safety message and return immediately.
-        const ttsResult = await textToSpeech(safetyResult.safetyResponse);
-        return {
-          isSafetyResponse: true,
-          responseText: safetyResult.safetyResponse,
-          audioDataUri: ttsResult.audioDataUri,
-          updatedSessionState: input.sessionState, // Session state is not modified by safety net.
-        };
-      }
+    // If it's the start of the session, we skip the safety check and go straight to the greeting.
+    if (input.userInput === "ISKYLAR_SESSION_START") {
+      const aiResult = await askiSkylar(input);
+      const ttsResult = await textToSpeech(aiResult.iSkylarResponse);
+      return {
+        isSafetyResponse: false,
+        responseText: aiResult.iSkylarResponse,
+        audioDataUri: ttsResult.audioDataUri,
+        updatedSessionState: aiResult.updatedSessionState,
+      };
     }
 
-    // 2. If no safety issues, get the standard text response from iSkylar.
-    const aiResult = await askiSkylar(input);
+    // For subsequent messages, run safety check and therapy response in parallel.
+    const [safetyResult, aiResult] = await Promise.all([
+      safetyNetActivation({ userInput: input.userInput }),
+      askiSkylar(input)
+    ]);
 
-    // 3. Convert the text response to speech.
+    // Prioritize the safety response if a risk is detected.
+    if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
+      const ttsResult = await textToSpeech(safetyResult.safetyResponse);
+      return {
+        isSafetyResponse: true,
+        responseText: safetyResult.safetyResponse,
+        audioDataUri: ttsResult.audioDataUri,
+        updatedSessionState: input.sessionState, // Session state is not modified by safety net.
+      };
+    }
+
+    // If no safety issues, proceed with the standard therapy response.
     const ttsResult = await textToSpeech(aiResult.iSkylarResponse);
 
-    // 4. Return the combined result.
     return {
       isSafetyResponse: false,
       responseText: aiResult.iSkylarResponse,
