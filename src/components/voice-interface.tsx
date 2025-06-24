@@ -5,8 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, User, Brain, AlertTriangle, Loader2 } from "lucide-react";
-import { getTextResponse } from "@/ai/flows/get-text-response";
-import { textToSpeech } from "@/ai/flows/tts";
+import { getSpokenResponse } from "@/ai/flows/get-spoken-response";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -89,25 +88,23 @@ export default function VoiceInterface() {
     setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
     
     try {
-        const textResponse = await getTextResponse({ userInput: finalUserInput, sessionState });
-        setSessionState(textResponse.updatedSessionState);
+        const response = await getSpokenResponse({ userInput: finalUserInput, sessionState });
+        setSessionState(response.updatedSessionState);
         
         const message = {
-            id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
-            speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
-            text: textResponse.responseText,
-            icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
+            id: `${response.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
+            speaker: response.isSafetyResponse ? "system" : "iSkylar",
+            text: response.responseText,
+            icon: response.isSafetyResponse ? AlertTriangle : Brain
         };
         setChatHistory(prev => [...prev, message]);
-        setIsSending(false); // Hide "thinking" indicator as soon as text is ready
-
-        // Now, get the audio and play it in the background
-        const ttsResponse = await textToSpeech(textResponse.responseText);
-        await playAudio(ttsResponse.audioDataUri, textResponse.sessionShouldEnd);
+        
+        await playAudio(response.audioDataUri, response.sessionShouldEnd);
 
     } catch (error) {
         console.error("Error sending message:", error);
         toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+    } finally {
         setIsSending(false);
     }
   }, [sessionState, toast, sessionStarted, playAudio]);
@@ -172,19 +169,18 @@ export default function VoiceInterface() {
     setChatHistory([]);
     setSessionStarted(true);
     try {
-        const textResponse = await getTextResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined });
-        setSessionState(textResponse.updatedSessionState);
+        const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined });
+        setSessionState(response.updatedSessionState);
 
         const greetingMessage = {
             id: `iskylar-greeting-${Date.now()}`,
             speaker: "iSkylar",
-            text: textResponse.responseText,
+            text: response.responseText,
             icon: Brain
         };
         setChatHistory([greetingMessage]);
         
-        const ttsResponse = await textToSpeech(textResponse.responseText);
-        await playAudio(ttsResponse.audioDataUri, textResponse.sessionShouldEnd);
+        await playAudio(response.audioDataUri, response.sessionShouldEnd);
     } catch (error) {
         console.error("Error during session initiation:", error);
         toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
@@ -192,7 +188,7 @@ export default function VoiceInterface() {
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, playAudio, handleSendMessage]);
+  }, [toast, playAudio]);
   
   const handleMicClick = useCallback(() => {
     if (isSpeaking && currentAudioRef.current) {
