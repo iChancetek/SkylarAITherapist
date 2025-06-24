@@ -27,39 +27,59 @@ export default function VoiceInterface() {
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
 
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
-    if (audioRef.current) {
-      setIsSpeaking(true);
-      audioRef.current.src = audioDataUri;
-      audioRef.current.load();
-      
-      try {
-        await audioRef.current.play();
-        await new Promise<void>((resolve) => {
-          const onEnded = () => {
-            audioRef.current?.removeEventListener('ended', onEnded);
-            setIsSpeaking(false);
-            if (sessionShouldEnd) {
-              setSessionStarted(false);
-              setSessionState(undefined);
-              setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
-            }
-            resolve();
-          };
-          audioRef.current.addEventListener('ended', onEnded);
-        });
-      } catch (e) {
-        console.error("Audio playback error:", e);
-        toast({ title: "Audio Error", description: "Could not play iSkylar's voice.", variant: "destructive" });
-        setIsSpeaking(false);
-      }
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
     }
-  }, [toast]);
+
+    const audio = new Audio(audioDataUri);
+    currentAudioRef.current = audio;
+    audio.playsInline = true;
+    setIsSpeaking(true);
+
+    const cleanup = () => {
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
+      if (currentAudioRef.current === audio) {
+        currentAudioRef.current = null;
+      }
+      setIsSpeaking(false);
+    };
+
+    const onEnded = () => {
+      cleanup();
+      if (sessionShouldEnd) {
+        setSessionStarted(false);
+        setSessionState(undefined);
+        setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+      }
+    };
+    
+    const onError = (e) => {
+      console.error("Audio element error:", e);
+      toast({ title: "Audio Error", description: "The voice could not be played.", variant: "destructive" });
+      cleanup();
+    };
+
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
+
+    try {
+      await audio.play();
+    } catch (e) {
+      console.error("Audio playback error:", e);
+      if (!audio.error) {
+         toast({ title: "Playback Error", description: "Your browser may have blocked the audio.", variant: "destructive" });
+      }
+      cleanup();
+    }
+  }, [toast, setSessionStarted, setSessionState, setChatHistory, setIsSpeaking]);
   
   const handleSendMessage = useCallback(async (userInput: string) => {
     const finalUserInput = userInput.trim();
@@ -138,17 +158,14 @@ export default function VoiceInterface() {
   }, [sessionStarted, isSpeaking, isSending, isListening, startListening, isInitializing]);
   
   const handleStartSession = useCallback(async () => {
-    if (audioRef.current && audioRef.current.paused) {
-      audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-      audioRef.current.muted = true;
-      try {
-        await audioRef.current.play();
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.muted = false;
-      } catch (e) {
-        console.error("Audio unlock failed.", e);
-      }
+    // Unlock audio context. This is crucial for mobile browsers.
+    try {
+        const unlockAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+        unlockAudio.volume = 0;
+        unlockAudio.playsInline = true;
+        await unlockAudio.play();
+    } catch (e) {
+        console.warn("Could not pre-play silent audio. Playback might not work on mobile.", e);
     }
 
     setIsInitializing(true);
@@ -175,18 +192,18 @@ export default function VoiceInterface() {
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, playAudio]);
+  }, [toast, playAudio, handleSendMessage]);
   
   const handleMicClick = useCallback(() => {
-    if (isSpeaking && audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+    if (isSpeaking && currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
         setIsSpeaking(false);
     }
     if (!isListening) {
         startListening();
     }
-  }, [isSpeaking, isListening, startListening]);
+  }, [isSpeaking, isListening, startListening, setIsSpeaking]);
   
   useEffect(() => {
     if (chatHistoryRef.current) {
@@ -197,9 +214,9 @@ export default function VoiceInterface() {
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
     };
   }, []);
@@ -215,7 +232,6 @@ export default function VoiceInterface() {
   
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
-      <audio ref={audioRef} playsInline />
       <header className="mb-4 flex flex-col items-center text-center">
         <h1 className="text-4xl font-headline font-bold text-primary">iSkylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
