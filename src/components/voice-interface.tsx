@@ -42,6 +42,7 @@ export default function VoiceInterface() {
         const { audioDataUri } = await textToSpeech(text);
         if (audioRef.current) {
             audioRef.current.src = audioDataUri;
+            audioRef.current.load(); // Explicitly load the new source for mobile compatibility
             await audioRef.current.play();
         }
     } catch (error) {
@@ -86,28 +87,22 @@ export default function VoiceInterface() {
         return;
     }
 
-    if (recognitionRef.current) {
-        recognitionRef.current.abort();
+    if (recognitionRef.current && isListening) {
+        recognitionRef.current.stop();
     }
 
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     recognition.lang = "en-US";
     recognition.interimResults = false;
-    recognition.continuous = false;
+    recognition.continuous = false; // Simplified for better mobile compatibility
 
-    recognition.onstart = () => {
-        setIsListening(true);
-    };
-    
-    recognition.onend = () => {
-        setIsListening(false);
-    };
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
     
     recognition.onerror = (event) => {
         setIsListening(false);
         if (event.error === 'no-speech' || event.error === 'aborted') {
-            console.log("Speech recognition stopped or aborted, will restart if needed.");
             return;
         }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -126,16 +121,38 @@ export default function VoiceInterface() {
     };
     
     recognition.start();
-  }, [toast, handleSendMessage]);
+  }, [toast, handleSendMessage, isListening]);
   
   useEffect(() => {
-    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing && !isListening;
-    if (shouldBeListening) {
+    const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing;
+    if (shouldBeListening && !isListening) {
       startListening();
+    } else if (!shouldBeListening && isListening) {
+      recognitionRef.current?.stop();
     }
   }, [sessionStarted, isSpeaking, isSending, isListening, startListening, isInitializing]);
   
   const handleStartSession = useCallback(async () => {
+    // --- Audio Unlock for Mobile Browsers ---
+    if (audioRef.current && audioRef.current.paused) {
+      audioRef.current.muted = true;
+      try {
+        // A user-initiated play() call is required to unlock audio on mobile.
+        await audioRef.current.play();
+        // If it plays, immediately pause it. We don't want to hear the silence.
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch (e) {
+        console.error("Could not unlock audio context:", e);
+        toast({ title: "Audio Error", description: "Could not initialize audio. Please interact with the page and try again.", variant: "destructive" });
+        return; // Stop if audio cannot be unlocked.
+      } finally {
+        // Ensure audio is unmuted for actual playback.
+        audioRef.current.muted = false;
+      }
+    }
+    // --- End Audio Unlock ---
+
     setIsInitializing(true);
     setSessionStarted(true);
     try {
@@ -166,31 +183,25 @@ export default function VoiceInterface() {
   }, [chatHistory]);
 
   useEffect(() => {
-    const currentAudio = audioRef.current;
-    const onEnded = () => {
-        setIsSpeaking(false);
-    };
-
-    if (currentAudio) {
-        currentAudio.addEventListener('ended', onEnded);
+    const audioEl = audioRef.current;
+    const handleAudioEnd = () => setIsSpeaking(false);
+    if (audioEl) {
+      audioEl.addEventListener('ended', handleAudioEnd);
+      return () => {
+        audioEl.removeEventListener('ended', handleAudioEnd);
+      };
     }
-    return () => {
-        if (currentAudio) {
-            currentAudio.removeEventListener('ended', onEnded);
-        }
-    };
   }, []);
   
   useEffect(() => {
     return () => {
-        if (recognitionRef.current) {
-          recognitionRef.current.abort();
-        }
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = "";
-        }
-        setSessionStarted(false);
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
     };
   }, []);
 
