@@ -28,57 +28,65 @@ export default function VoiceInterface() {
   const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
 
+  const initializeAudioContext = useCallback(() => {
+    if (window.AudioContext || window.webkitAudioContext) {
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContextRef.current.state === 'suspended') {
+            audioContextRef.current.resume();
+        }
+    } else {
+        toast({ title: "Browser Not Supported", description: "Web Audio API is not available.", variant: "destructive" });
+    }
+  }, [toast]);
+
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
+    if (sourceNodeRef.current) {
+        try { sourceNodeRef.current.stop(); } catch(e) {}
     }
 
-    const audio = new Audio(audioDataUri);
-    currentAudioRef.current = audio;
-    audio.playsInline = true;
-    setIsSpeaking(true);
-
-    const cleanup = () => {
-      audio.removeEventListener('ended', onEnded);
-      audio.removeEventListener('error', onError);
-      if (currentAudioRef.current === audio) {
-        currentAudioRef.current = null;
-      }
-      setIsSpeaking(false);
-    };
-
-    const onEnded = () => {
-      cleanup();
-      if (sessionShouldEnd) {
-        setSessionStarted(false);
-        setSessionState(undefined);
-        setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
-      }
-    };
+    if (!audioContextRef.current) {
+        toast({ title: "Audio Error", description: "Audio system not ready. Please tap a button to enable it.", variant: "destructive" });
+        return;
+    }
     
-    const onError = (e) => {
-      console.error("Audio element error:", e);
-      toast({ title: "Audio Error", description: "The voice could not be played.", variant: "destructive" });
-      cleanup();
-    };
-
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('error', onError);
-
+    setIsSpeaking(true);
+    
     try {
-      await audio.play();
+        const response = await fetch(audioDataUri);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
+
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContextRef.current.destination);
+        sourceNodeRef.current = source;
+
+        source.onended = () => {
+            if (sourceNodeRef.current === source) {
+                 setIsSpeaking(false);
+                 sourceNodeRef.current = null;
+                 if (sessionShouldEnd) {
+                    setSessionStarted(false);
+                    setSessionState(undefined);
+                    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+                }
+            }
+        };
+
+        source.start(0);
+
     } catch (e) {
-      console.error("Audio playback error:", e);
-      if (!audio.error) {
-         toast({ title: "Playback Error", description: "Your browser may have blocked the audio.", variant: "destructive" });
-      }
-      cleanup();
+        console.error("Audio playback error:", e);
+        toast({ title: "Playback Error", description: "Could not play the voice.", variant: "destructive" });
+        setIsSpeaking(false);
     }
   }, [toast]);
   
@@ -201,15 +209,7 @@ export default function VoiceInterface() {
   }, [sessionStarted, isSpeaking, isSending, isListening, startListening, isInitializing]);
   
   const handleStartSession = useCallback(async () => {
-    // Unlock audio context. This is crucial for mobile browsers.
-    try {
-        const unlockAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-        unlockAudio.volume = 0;
-        unlockAudio.playsInline = true;
-        await unlockAudio.play();
-    } catch (e) {
-        console.warn("Could not pre-play silent audio. Playback might not work on mobile.", e);
-    }
+    initializeAudioContext();
 
     setIsInitializing(true);
     setChatHistory([]);
@@ -246,18 +246,18 @@ export default function VoiceInterface() {
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, playAudio, handleTextOnlyResponse]);
+  }, [toast, playAudio, handleTextOnlyResponse, initializeAudioContext]);
   
   const handleMicClick = useCallback(() => {
-    if (isSpeaking && currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-        setIsSpeaking(false);
+    initializeAudioContext();
+    
+    if (isSpeaking && sourceNodeRef.current) {
+        try { sourceNodeRef.current.stop(); } catch(e) {}
     }
     if (!isListening) {
         startListening();
     }
-  }, [isSpeaking, isListening, startListening]);
+  }, [isSpeaking, isListening, startListening, initializeAudioContext]);
   
   useEffect(() => {
     if (chatHistoryRef.current) {
@@ -268,9 +268,11 @@ export default function VoiceInterface() {
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort();
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
+      if (sourceNodeRef.current) {
+        try { sourceNodeRef.current.stop(); } catch(e) {}
+      }
+      if (audioContextRef.current) {
+          audioContextRef.current.close();
       }
     };
   }, []);
