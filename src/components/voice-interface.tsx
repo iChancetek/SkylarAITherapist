@@ -25,6 +25,7 @@ export default function VoiceInterface() {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
+  const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -79,14 +80,44 @@ export default function VoiceInterface() {
       }
       cleanup();
     }
-  }, [toast, setSessionStarted, setSessionState, setChatHistory, setIsSpeaking]);
+  }, [toast]);
   
+  const handleTextOnlyResponse = useCallback(async (userInput: string) => {
+    try {
+        const textResponse = await getTextResponse({ userInput, sessionState });
+        setSessionState(textResponse.updatedSessionState);
+
+        const message = {
+            id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
+            speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
+            text: textResponse.responseText,
+            icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
+        };
+        setChatHistory(prev => [...prev, message]);
+
+        if (textResponse.sessionShouldEnd) {
+            setSessionStarted(false);
+            setSessionState(undefined);
+            setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+        }
+    } catch (fallbackError) {
+        console.error("Error during text-only fallback:", fallbackError);
+        toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
+    }
+  }, [sessionState, toast]);
+
   const handleSendMessage = useCallback(async (userInput: string) => {
     const finalUserInput = userInput.trim();
     if (!finalUserInput || !sessionStarted) return;
 
     setIsSending(true);
     setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
+    
+    if (isVoiceQuotaReached) {
+        await handleTextOnlyResponse(finalUserInput);
+        setIsSending(false);
+        return;
+    }
     
     try {
         const response = await getSpokenResponse({ userInput: finalUserInput, sessionState });
@@ -108,40 +139,21 @@ export default function VoiceInterface() {
         const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
 
         if (isQuotaError) {
+            console.warn("Voice quota reached. Switching to text-only responses.");
+            setIsVoiceQuotaReached(true);
             toast({
                 title: "Voice Limit Reached",
                 description: "The daily limit for voice generation has been reached. Switching to text-only responses for now.",
                 variant: "destructive"
             });
-
-            try {
-                const textResponse = await getTextResponse({ userInput: finalUserInput, sessionState });
-                setSessionState(textResponse.updatedSessionState);
-
-                const message = {
-                    id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
-                    speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
-                    text: textResponse.responseText,
-                    icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
-                };
-                setChatHistory(prev => [...prev, message]);
-
-                if (textResponse.sessionShouldEnd) {
-                    setSessionStarted(false);
-                    setSessionState(undefined);
-                    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
-                }
-            } catch (fallbackError) {
-                console.error("Error during text-only fallback:", fallbackError);
-                toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
-            }
+            await handleTextOnlyResponse(finalUserInput);
         } else {
             toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
         }
     } finally {
         setIsSending(false);
     }
-  }, [sessionState, toast, sessionStarted, playAudio, setSessionStarted, setSessionState, setChatHistory, setIsSending]);
+  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -216,13 +228,25 @@ export default function VoiceInterface() {
         
         await playAudio(response.audioDataUri, response.sessionShouldEnd);
     } catch (error) {
-        console.error("Error during session initiation:", error);
-        toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
-        setSessionStarted(false);
+        const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
+        if (isQuotaError) {
+            console.warn("Voice quota reached on session start. Switching to text-only mode.");
+            setIsVoiceQuotaReached(true);
+            toast({
+                title: "Voice Limit Reached",
+                description: "The daily limit for voice generation has been reached. Starting in text-only mode.",
+                variant: "destructive"
+            });
+            await handleTextOnlyResponse("ISKYLAR_SESSION_START");
+        } else {
+             console.error("Error during session initiation:", error);
+            toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
+            setSessionStarted(false);
+        }
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, playAudio]);
+  }, [toast, playAudio, handleTextOnlyResponse]);
   
   const handleMicClick = useCallback(() => {
     if (isSpeaking && currentAudioRef.current) {
@@ -233,7 +257,7 @@ export default function VoiceInterface() {
     if (!isListening) {
         startListening();
     }
-  }, [isSpeaking, isListening, startListening, setIsSpeaking]);
+  }, [isSpeaking, isListening, startListening]);
   
   useEffect(() => {
     if (chatHistoryRef.current) {
