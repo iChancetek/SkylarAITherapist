@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 "use client";
 
@@ -34,21 +35,36 @@ export default function VoiceInterface() {
   const { toast } = useToast();
 
   const playAudioResponse = useCallback(async (text: string) => {
-    if (!text) {
-      return;
-    };
+    if (!text) return;
+  
     setIsSpeaking(true);
     try {
-        const { audioDataUri } = await textToSpeech(text);
-        if (audioRef.current) {
-            audioRef.current.src = audioDataUri;
-            audioRef.current.load(); // Explicitly load the new source for mobile compatibility
-            await audioRef.current.play();
-        }
+      const { audioDataUri } = await textToSpeech(text);
+      if (audioRef.current) {
+        audioRef.current.src = audioDataUri;
+        audioRef.current.load();
+        await audioRef.current.play();
+  
+        // Wait for audio to finish playing
+        await new Promise<void>(resolve => {
+          const onEnded = () => {
+            if (audioRef.current) {
+              audioRef.current.removeEventListener('ended', onEnded);
+            }
+            resolve();
+          };
+          if (audioRef.current) {
+            audioRef.current.addEventListener('ended', onEnded);
+          } else {
+            resolve();
+          }
+        });
+      }
     } catch (error) {
-        console.error("Error playing audio response:", error);
-        toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
-        setIsSpeaking(false);
+      console.error("Error playing audio response:", error);
+      toast({ title: "Audio Error", description: "Could not play iSkylar's response.", variant: "destructive" });
+    } finally {
+      setIsSpeaking(false);
     }
   }, [toast]);
 
@@ -178,17 +194,6 @@ export default function VoiceInterface() {
         chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [chatHistory]);
-
-  useEffect(() => {
-    const audioEl = audioRef.current;
-    const handleAudioEnd = () => setIsSpeaking(false);
-    if (audioEl) {
-      audioEl.addEventListener('ended', handleAudioEnd);
-      return () => {
-        audioEl.removeEventListener('ended', handleAudioEnd);
-      };
-    }
-  }, []);
   
   useEffect(() => {
     return () => {
