@@ -17,7 +17,7 @@ export async function textToSpeech(text: string): Promise<TextToSpeechOutput> {
       speechConfig: {
         voiceConfig: {
           // A friendly, natural female voice.
-          prebuiltVoiceConfig: {voiceName: 'achernar'},
+          prebuiltVoiceConfig: {voiceName: 'rasalhague'},
         },
       },
     },
