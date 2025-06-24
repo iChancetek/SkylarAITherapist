@@ -4,26 +4,10 @@
  * @fileOverview An AI agent that personalizes therapy sessions based on past session history.
  *
  * - personalizedTherapy - A function that handles the personalized therapy process.
- * - PersonalizedTherapyInput - The input type for the personalizedTherapy function.
- * - PersonalizedTherapyOutput - The return type for the personalizedTherapy function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const PersonalizedTherapyInputSchema = z.object({
-  currentEmotion: z.string().describe('The user\'s current emotional state.'),
-  lastSessionSummary: z
-    .string()
-    .describe('A summary of the user\'s previous therapy session.'),
-  userMessage: z.string().describe('The user\'s current message or concern.'),
-});
-export type PersonalizedTherapyInput = z.infer<typeof PersonalizedTherapyInputSchema>;
-
-const PersonalizedTherapyOutputSchema = z.object({
-  response: z.string().describe('The AI therapist\'s personalized response.'),
-});
-export type PersonalizedTherapyOutput = z.infer<typeof PersonalizedTherapyOutputSchema>;
+import { PersonalizedTherapyInputSchema, PersonalizedTherapyOutputSchema, type PersonalizedTherapyInput, type PersonalizedTherapyOutput } from '@/ai/schema/personalized-therapy';
 
 export async function personalizedTherapy(input: PersonalizedTherapyInput): Promise<PersonalizedTherapyOutput> {
   return personalizedTherapyFlow(input);

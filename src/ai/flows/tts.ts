@@ -3,17 +3,11 @@
  * @fileOverview A text-to-speech (TTS) flow for iSkylar.
  *
  * - textToSpeech - A function that converts text into speech audio.
- * - TextToSpeechOutput - The return type for the textToSpeech function.
  */
 import {ai} from '@/ai/genkit';
 import {googleAI} from '@genkit-ai/googleai';
-import {z} from 'genkit';
 import wav from 'wav';
-
-const TextToSpeechOutputSchema = z.object({
-  audioDataUri: z.string().describe('The base64 encoded data URI of the audio.'),
-});
-export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
+import { TextToSpeechOutputSchema, type TextToSpeechOutput } from '@/ai/schema/tts';
 
 export async function textToSpeech(text: string): Promise<TextToSpeechOutput> {
   const {media} = await ai.generate({

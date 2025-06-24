@@ -3,25 +3,7 @@
 'use server';
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const EmotionalCueRecognitionInputSchema = z.object({
-  speech: z.string().describe('The user speech to analyze.'),
-});
-
-export type EmotionalCueRecognitionInput = z.infer<
-  typeof EmotionalCueRecognitionInputSchema
->;
-
-const EmotionalCueRecognitionOutputSchema = z.object({
-  emotionalCues: z
-    .array(z.string())
-    .describe('The emotional cues detected in the speech.'),
-});
-
-export type EmotionalCueRecognitionOutput = z.infer<
-  typeof EmotionalCueRecognitionOutputSchema
->;
+import { EmotionalCueRecognitionInputSchema, EmotionalCueRecognitionOutputSchema, type EmotionalCueRecognitionInput, type EmotionalCueRecognitionOutput } from '@/ai/schema/emotional-cue-recognition';
 
 export async function recognizeEmotionalCues(
   input: EmotionalCueRecognitionInput

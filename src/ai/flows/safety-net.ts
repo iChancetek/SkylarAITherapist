@@ -4,28 +4,10 @@
  * @fileOverview Activates safety protocols and offers resources if high-risk emotions or thoughts are detected.
  *
  * - safetyNetActivation - A function that handles the activation of safety protocols.
- * - SafetyNetActivationInput - The input type for the safetyNetActivation function.
- * - SafetyNetActivationOutput - The return type for the safetyNetActivation function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const SafetyNetActivationInputSchema = z.object({
-  userInput: z
-    .string()
-    .describe('The user input which may contain high-risk emotions or thoughts.'),
-});
-export type SafetyNetActivationInput = z.infer<typeof SafetyNetActivationInputSchema>;
-
-const SafetyNetActivationOutputSchema = z.object({
-  safetyResponse: z
-    .string()
-    .describe(
-      'A response containing safety protocols, crisis hotline information, or grounding exercises. Empty if no safety net activation is needed.'
-    ),
-});
-export type SafetyNetActivationOutput = z.infer<typeof SafetyNetActivationOutputSchema>;
+import { SafetyNetActivationInputSchema, SafetyNetActivationOutputSchema, type SafetyNetActivationInput, type SafetyNetActivationOutput } from '@/ai/schema/safety-net';
 
 export async function safetyNetActivation(input: SafetyNetActivationInput): Promise<SafetyNetActivationOutput> {
   return safetyNetActivationFlow(input);

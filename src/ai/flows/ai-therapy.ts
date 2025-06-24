@@ -3,24 +3,10 @@
  * @fileOverview A voice conversation with iSkylar, the AI therapist.
  *
  * - askiSkylar - A function that handles the conversation with iSkylar.
- * - iSkylarInput - The input type for the askiSkylar function.
- * - iSkylarOutput - The return type for the askiSkylar function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const iSkylarInputSchema = z.object({
-  userInput: z.string().describe('The user input from voice or text. Can be "ISKYLAR_SESSION_START" to initiate the session.'),
-  sessionState: z.string().optional().describe('A JSON string representing the session state, including mood patterns, progress, previously mentioned goals, and user name if known. The AI must update this state and return it.'),
-});
-export type iSkylarInput = z.infer<typeof iSkylarInputSchema>;
-
-const iSkylarOutputSchema = z.object({
-  iSkylarResponse: z.string().describe('iSkylar’s response to the user.'),
-  updatedSessionState: z.string().optional().describe('The updated JSON string for the session state after iSkylar’s response. This must always be returned.'),
-});
-export type iSkylarOutput = z.infer<typeof iSkylarOutputSchema>;
+import { iSkylarInputSchema, iSkylarOutputSchema, type iSkylarInput, type iSkylarOutput } from '@/ai/schema/ai-therapy';
 
 export async function askiSkylar(input: iSkylarInput): Promise<iSkylarOutput> {
   return iSkylarConversationFlow(input);
