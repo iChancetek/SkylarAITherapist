@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, User, Brain, AlertTriangle, Loader2 } from "lucide-react";
 import { getSpokenResponse } from "@/ai/flows/get-spoken-response";
+import { getTextResponse } from "@/ai/flows/get-text-response";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -101,13 +102,46 @@ export default function VoiceInterface() {
         
         await playAudio(response.audioDataUri, response.sessionShouldEnd);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error sending message:", error);
-        toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+
+        const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
+
+        if (isQuotaError) {
+            toast({
+                title: "Voice Limit Reached",
+                description: "The daily limit for voice generation has been reached. Switching to text-only responses for now.",
+                variant: "destructive"
+            });
+
+            try {
+                const textResponse = await getTextResponse({ userInput: finalUserInput, sessionState });
+                setSessionState(textResponse.updatedSessionState);
+
+                const message = {
+                    id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
+                    speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
+                    text: textResponse.responseText,
+                    icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
+                };
+                setChatHistory(prev => [...prev, message]);
+
+                if (textResponse.sessionShouldEnd) {
+                    setSessionStarted(false);
+                    setSessionState(undefined);
+                    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+                }
+            } catch (fallbackError) {
+                console.error("Error during text-only fallback:", fallbackError);
+                toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
+            }
+        } else {
+            toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+        }
     } finally {
         setIsSending(false);
     }
-  }, [sessionState, toast, sessionStarted, playAudio]);
+  }, [sessionState, toast, sessionStarted, playAudio, setSessionStarted, setSessionState, setChatHistory, setIsSending]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
