@@ -35,16 +35,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
-        // Update last login timestamp
-        const userRef = doc(db, "users", user.uid);
-        try {
-            await updateDoc(userRef, {
-              lastLogin: serverTimestamp(),
-            });
-        } catch (e) {
-            // This can happen if the user doc doesn't exist yet during initial sign up flow.
-            // It's safe to ignore here as the profile creation logic handles it.
-        }
       } else {
         setUser(null);
       }
@@ -74,11 +64,10 @@ export const useFirebaseAuth = () => {
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
 
-      // If user doesn't exist in Firestore, create a new document
       if (!userDoc.exists()) {
         await setDoc(userRef, {
           uid: user.uid,
-          username: user.email?.split('@')[0] || `user${Date.now()}`, // fallback username
+          username: user.email?.split('@')[0] || `user${Date.now()}`,
           email: user.email,
           fullName: user.displayName,
           profileImage: user.photoURL,
@@ -86,6 +75,10 @@ export const useFirebaseAuth = () => {
           lastLogin: serverTimestamp(),
           role: "user",
         });
+      } else {
+         await updateDoc(userRef, {
+            lastLogin: serverTimestamp(),
+         });
       }
       router.push("/dashboard");
     } catch (error: any) {
@@ -95,14 +88,11 @@ export const useFirebaseAuth = () => {
                 case 'auth/operation-not-allowed':
                     errorMessage = 'Google Sign-In is not enabled. Please enable it in the Firebase console.';
                     break;
-                case 'auth/unauthorized-domain':
-                    errorMessage = 'This domain is not authorized for authentication. Please add it in your Firebase console settings.';
-                    break;
                 case 'auth/popup-closed-by-user':
                     errorMessage = 'The sign-in window was closed before completing. Please try again.';
                     break;
                 default:
-                    errorMessage = `Login Error: ${error.code}`;
+                    errorMessage = `Login Error: ${error.message}`;
             }
         }
       toast({
@@ -137,7 +127,6 @@ export const useFirebaseAuth = () => {
     }
 
     try {
-      // Check if username is unique
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("username", "==", username));
       const querySnapshot = await getDocs(q);
@@ -149,7 +138,6 @@ export const useFirebaseAuth = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
 
-      // Create user profile in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         username: username,
@@ -177,7 +165,11 @@ export const useFirebaseAuth = () => {
 
   const handleEmailPasswordLogin = async (email: string, pass: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      const { user } = await signInWithEmailAndPassword(auth, email, pass);
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        lastLogin: serverTimestamp(),
+      });
       router.push("/dashboard");
     } catch (e: any)
       {
