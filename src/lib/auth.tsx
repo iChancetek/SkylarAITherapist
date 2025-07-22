@@ -11,6 +11,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  setPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
 import { app, db } from "./firebase";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
@@ -57,7 +59,9 @@ export const useFirebaseAuth = () => {
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
+      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -92,9 +96,12 @@ export const useFirebaseAuth = () => {
       } else if (error.code === 'auth/popup-closed-by-user') {
         title = "Sign-In Cancelled";
         description = "You closed the sign-in window before completing the process.";
-      } else if (error.code === 'permission-denied') {
+      } else if (error.code === 'permission-denied' || error.code === 'auth/permission-denied') {
         title = "Permission Denied";
         description = "Could not create or update user profile. Please check your Firestore security rules to allow user actions.";
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+        title = "Invalid Action";
+        description = "The requested action is invalid. This may be due to a configuration issue in your Google Cloud Console OAuth settings.";
       }
 
 
@@ -149,7 +156,7 @@ export const useFirebaseAuth = () => {
             description = 'This email address is already associated with an account.';
         } else if (error.code === 'auth/invalid-email') {
             description = 'The email address you entered is not valid.';
-        } else if (error.code === 'permission-denied') {
+        } else if (error.code === 'permission-denied' || error.code === 'auth/permission-denied') {
             title = "Permission Denied";
             description = "Could not create user profile. Please check your Firestore security rules to allow user creation.";
         }
@@ -178,7 +185,7 @@ export const useFirebaseAuth = () => {
 
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         description = 'Invalid email or password. Please try again.';
-      } else if (error.code === 'permission-denied') {
+      } else if (error.code === 'permission-denied' || error.code === 'auth/permission-denied') {
         title = "Permission Denied";
         description = "Could not update user session. Please check your Firestore security rules.";
       }
