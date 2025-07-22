@@ -7,7 +7,7 @@ const firebaseConfig = {
   "appId": "1:584729201545:web:cf415a8466017b55f56f58",
   "storageBucket": "skylar-ai-voice-therapy.firebasestorage.app",
   "apiKey": "AIzaSyAoIOCJlx30-KHjb5MKU51GibpUBpazrWo",
-  "authDomain": "skylar-ai-voice-therapy.firebaseapp.com",
+  "authDomain": "iskylar.us",
   "messagingSenderId": "584729201545"
 };
 
