@@ -11,7 +11,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { app } from "./firebase";
+import { app, db } from "./firebase";
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -29,9 +30,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
+        // Update last login timestamp
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          lastLogin: serverTimestamp(),
+        });
       } else {
         setUser(null);
       }
@@ -55,8 +61,26 @@ export const useFirebaseAuth = () => {
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      router.push("/");
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+
+      // If user doesn't exist in Firestore, create a new document
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          username: user.email?.split('@')[0] || `user${Date.now()}`, // fallback username
+          email: user.email,
+          fullName: user.displayName,
+          profileImage: user.photoURL,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          role: "user",
+        });
+      }
+      router.push("/dashboard");
     } catch (error: any) {
       toast({
         title: "Login Error",
@@ -66,7 +90,11 @@ export const useFirebaseAuth = () => {
     }
   };
   
-  const handleEmailPasswordSignUp = async (email: string, pass: string) => {
+  const handleEmailPasswordSignUp = async (fullName: string, username: string, email: string, pass: string) => {
+    if (!fullName || !username) {
+        toast({ title: "Sign-up Error", description: "Please fill out all fields.", variant: "destructive" });
+        return;
+    }
      if (pass.length < 8) {
       toast({
         title: "Password Error",
@@ -86,12 +114,39 @@ export const useFirebaseAuth = () => {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, pass);
-      router.push("/");
+      // Check if username is unique
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("username", "==", username));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        toast({ title: "Sign-up Error", description: "Username is already taken.", variant: "destructive" });
+        return;
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      const user = userCredential.user;
+
+      // Create user profile in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        username: username,
+        email: user.email,
+        fullName: fullName,
+        profileImage: null,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        role: "user",
+      });
+
+      router.push("/dashboard");
     } catch (e: any) {
+       let errorMessage = e.message;
+        if (e.code === 'auth/email-already-in-use') {
+            errorMessage = 'An account with this email address already exists.';
+        }
       toast({
         title: "Sign-up Error",
-        description: e.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -100,11 +155,15 @@ export const useFirebaseAuth = () => {
   const handleEmailPasswordLogin = async (email: string, pass: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      router.push("/");
+      router.push("/dashboard");
     } catch (e: any) {
+      let errorMessage = e.message;
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+        errorMessage = 'Invalid email or password. Please try again.';
+      }
       toast({
         title: "Login Error",
-        description: e.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }

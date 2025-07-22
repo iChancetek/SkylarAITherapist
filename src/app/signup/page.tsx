@@ -10,6 +10,8 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function SignupPage() {
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -22,7 +24,7 @@ export default function SignupPage() {
       alert("Passwords do not match.");
       return;
     }
-    handleEmailPasswordSignUp(email, password);
+    handleEmailPasswordSignUp(fullName, username, email, password);
   }
 
   return (
@@ -39,7 +41,31 @@ export default function SignupPage() {
 
         <div className="w-full max-w-md bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
           <div className="space-y-4">
-            <h2 className="text-3xl font-bold text-white text-center">Sign Up</h2>
+            <h2 className="text-3xl font-bold text-white text-center">Create Account</h2>
+            <div className="grid gap-2">
+              <Label className="text-white/80" htmlFor="fullName">Full Name</Label>
+              <Input
+                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                id="fullName"
+                type="text"
+                placeholder="Jane Doe"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+            </div>
+             <div className="grid gap-2">
+              <Label className="text-white/80" htmlFor="username">Username</Label>
+              <Input
+                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                id="username"
+                type="text"
+                placeholder="jane_doe"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
             <div className="grid gap-2">
               <Label className="text-white/80" htmlFor="email">Email</Label>
               <Input
@@ -89,7 +115,7 @@ export default function SignupPage() {
               </button>
             </div>
             <p className="text-xs text-white/60 px-1">
-              Password must be at least 8 characters long.
+              Password must be at least 8 characters long, with one number and one special character.
             </p>
             <Button
               className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold text-base shadow-lg transition-all duration-300 transform hover:scale-105"
