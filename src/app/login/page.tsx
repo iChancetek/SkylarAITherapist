@@ -36,7 +36,7 @@ export default function LoginPage() {
             iSkylar
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            iSkylar is ready to listen.
+            Your AI Voice Therapist. Powered by Generative AI. iSkylar is ready to listen.
           </p>
         </div>
         
