@@ -32,14 +32,14 @@ export default function LoginPage() {
   const { handleEmailPasswordLogin, handleGoogleSignIn } = useFirebaseAuth();
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center p-4 animated-gradient">
+    <main className="relative flex min-h-screen w-full items-center justify-center p-4 animated-gradient">
       <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 items-center gap-8">
         <div className="text-white text-center md:text-left">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             Welcome to iSkylar
           </h1>
           <p className="mt-4 text-lg text-white/80">
-            Your AI Voice Therapist is ready to listen.
+            Your AI Voice Therapist. Powered by Generative AI. iSkylar is ready to listen.
           </p>
         </div>
 
@@ -113,6 +113,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+       <p className="absolute bottom-4 text-center text-xs text-white/50">Developed by ChanceTEK LLC | iSynera LLC</p>
     </main>
   );
 }
