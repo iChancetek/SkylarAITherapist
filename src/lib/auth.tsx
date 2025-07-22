@@ -13,7 +13,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { app, db } from "./firebase";
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -92,7 +92,11 @@ export const useFirebaseAuth = () => {
       } else if (error.code === 'auth/popup-closed-by-user') {
         title = "Sign-In Cancelled";
         description = "You closed the sign-in window before completing the process.";
+      } else if (error.code === 'permission-denied') {
+        title = "Permission Denied";
+        description = "Could not create or update user profile. Please check your Firestore security rules to allow user actions.";
       }
+
 
       toast({
         title: title,
@@ -117,21 +121,12 @@ export const useFirebaseAuth = () => {
     }
 
     try {
-        // Step 1: Check if username already exists.
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("username", "==", username));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            toast({ title: "Sign-up Error", description: "Username is already taken. Please choose another one.", variant: "destructive" });
-            return;
-        }
-
-        // Step 2: Create the user in Firebase Auth
+        // Step 1: Create the user in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const user = userCredential.user;
 
-        // Step 3: Create the user document in Firestore.
+        // Step 2: Create the user document in Firestore.
+        // This will only run if the user was successfully created above.
         await setDoc(doc(db, "users", user.uid), {
             uid: user.uid,
             username: username,
@@ -170,20 +165,27 @@ export const useFirebaseAuth = () => {
   const handleEmailPasswordLogin = async (email: string, pass: string) => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, pass);
+      // After successful login, attempt to update the lastLogin timestamp.
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         lastLogin: serverTimestamp(),
       });
       router.push("/dashboard");
-    } catch (e: any)
-      {
-      let errorMessage = "Invalid credentials. Please try again.";
-      if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid email or password. Please try again.';
+    } catch (error: any) {
+      console.error("Login Error:", error.code, error.message);
+      let title = "Login Error";
+      let description = "An unexpected error occurred. Please try again.";
+
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = 'Invalid email or password. Please try again.';
+      } else if (error.code === 'permission-denied') {
+        title = "Permission Denied";
+        description = "Could not update user session. Please check your Firestore security rules.";
       }
+      
       toast({
-        title: "Login Error",
-        description: errorMessage,
+        title: title,
+        description: description,
         variant: "destructive",
       });
     }
