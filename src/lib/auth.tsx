@@ -86,7 +86,9 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
+      console.error("Google Sign-In Error Code:", error.code);
+      console.error("Google Sign-In Error Message:", error.message);
+      
       let title = "Login Error";
       let description = "An unexpected error occurred. Please try again.";
 
@@ -103,7 +105,6 @@ export const useFirebaseAuth = () => {
         title = "Invalid Action";
         description = "The requested action is invalid. This may be due to a configuration issue in your Google Cloud Console OAuth settings.";
       }
-
 
       toast({
         title: title,
@@ -128,12 +129,9 @@ export const useFirebaseAuth = () => {
     }
 
     try {
-        // Step 1: Create the user in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const user = userCredential.user;
 
-        // Step 2: Create the user document in Firestore.
-        // This will only run if the user was successfully created above.
         await setDoc(doc(db, "users", user.uid), {
             uid: user.uid,
             username: username,
@@ -172,7 +170,6 @@ export const useFirebaseAuth = () => {
   const handleEmailPasswordLogin = async (email: string, pass: string) => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, pass);
-      // After successful login, attempt to update the lastLogin timestamp.
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         lastLogin: serverTimestamp(),
