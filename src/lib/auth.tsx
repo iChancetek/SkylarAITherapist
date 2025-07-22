@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -17,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+// Initialize Firebase Auth
 const auth = getAuth(app);
 
 export const AuthContext = createContext<{ user: User | null }>({
@@ -35,11 +37,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(user);
         // Update last login timestamp
         const userRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userRef);
-        if(userDoc.exists()) {
+        try {
             await updateDoc(userRef, {
               lastLogin: serverTimestamp(),
             });
+        } catch (e) {
+            // This can happen if the user doc doesn't exist yet during initial sign up flow.
+            // It's safe to ignore here as the profile creation logic handles it.
         }
       } else {
         setUser(null);
@@ -85,9 +89,21 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
-        let errorMessage = error.message;
-        if (error.code === 'auth/operation-not-allowed') {
-            errorMessage = 'Google Sign-In is not enabled for this project. Please enable it in the Firebase console.';
+        let errorMessage = "An unknown error occurred during login.";
+        if (error.code) {
+            switch (error.code) {
+                case 'auth/operation-not-allowed':
+                    errorMessage = 'Google Sign-In is not enabled. Please enable it in the Firebase console.';
+                    break;
+                case 'auth/unauthorized-domain':
+                    errorMessage = 'This domain is not authorized for authentication. Please add it in your Firebase console settings.';
+                    break;
+                case 'auth/popup-closed-by-user':
+                    errorMessage = 'The sign-in window was closed before completing. Please try again.';
+                    break;
+                default:
+                    errorMessage = `Login Error: ${error.code}`;
+            }
         }
       toast({
         title: "Login Error",
@@ -163,9 +179,10 @@ export const useFirebaseAuth = () => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       router.push("/dashboard");
-    } catch (e: any) {
-      let errorMessage = e.message;
-      if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+    } catch (e: any)
+      {
+      let errorMessage = "Invalid credentials. Please try again.";
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
         errorMessage = 'Invalid email or password. Please try again.';
       }
       toast({
