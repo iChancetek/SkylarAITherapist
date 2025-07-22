@@ -83,9 +83,20 @@ export const useFirebaseAuth = () => {
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
+      let title = "Login Error";
+      let description = "An unexpected error occurred. Please try again.";
+
+      if (error.code === 'auth/unauthorized-domain') {
+        title = "Domain Not Authorized";
+        description = "This domain is not authorized for Google Sign-In. Please check your Firebase and Google Cloud Console settings.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        title = "Sign-In Cancelled";
+        description = "You closed the sign-in window before completing the process.";
+      }
+
       toast({
-        title: "Login Error",
-        description: error.message,
+        title: title,
+        description: description,
         variant: "destructive",
       });
     }
@@ -96,25 +107,17 @@ export const useFirebaseAuth = () => {
         toast({ title: "Sign-up Error", description: "Please fill out all fields.", variant: "destructive" });
         return;
     }
-    if (pass.length < 8) {
+     if (pass.length < 8) {
       toast({
-        title: "Password Error",
+        title: "Password Too Short",
         description: "Password must be at least 8 characters long.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!/\d/.test(pass) || !/[!@#$%^&*(),.?":{}|<>_]/.test(pass)) {
-      toast({
-        title: "Password Error",
-        description: "Password must include at least one number and one special character.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-        // Step 1: Check if username already exists. This read should be allowed.
+        // Step 1: Check if username already exists.
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("username", "==", username));
         const querySnapshot = await getDocs(q);
@@ -128,7 +131,7 @@ export const useFirebaseAuth = () => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const user = userCredential.user;
 
-        // Step 3: Create the user document in Firestore. This write is now authenticated.
+        // Step 3: Create the user document in Firestore.
         await setDoc(doc(db, "users", user.uid), {
             uid: user.uid,
             username: username,
@@ -141,19 +144,24 @@ export const useFirebaseAuth = () => {
         });
 
         router.push("/dashboard");
-    } catch (e: any) {
-        let errorMessage = "An unexpected error occurred during sign-up.";
-        if (e.code === 'auth/email-already-in-use') {
-            errorMessage = 'An account with this email address already exists.';
-        } else if (e.code === 'auth/invalid-email') {
-            errorMessage = 'The email address is not valid.';
-        } else if (e.code === 'permission-denied') {
-            errorMessage = "You don't have permission to perform this action. Check Firestore rules.";
+
+    } catch (error: any) {
+        console.error("Sign-up Error:", error.code, error.message);
+        let title = "Sign-up Error";
+        let description = "An unexpected error occurred. Please try again.";
+        
+        if (error.code === 'auth/email-already-in-use') {
+            description = 'This email address is already associated with an account.';
+        } else if (error.code === 'auth/invalid-email') {
+            description = 'The email address you entered is not valid.';
+        } else if (error.code === 'permission-denied') {
+            title = "Permission Denied";
+            description = "Could not create user profile. Please check your Firestore security rules to allow user creation.";
         }
-        console.error("Sign-up Error:", e);
+        
         toast({
-            title: "Sign-up Error",
-            description: errorMessage,
+            title: title,
+            description: description,
             variant: "destructive",
         });
     }
