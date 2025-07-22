@@ -1,12 +1,14 @@
 "use client";
 
 import VoiceInterface from '@/components/voice-interface';
-import { useAuthContext } from '@/lib/auth';
+import { useAuthContext, useFirebaseAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardPage() {
   const { user } = useAuthContext();
+  const { handleLogout } = useFirebaseAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,6 +23,9 @@ export default function DashboardPage() {
   
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <div className="absolute top-4 right-4">
+        <Button onClick={handleLogout} variant="outline">Logout</Button>
+      </div>
       <VoiceInterface />
     </main>
   );

@@ -35,9 +35,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(user);
         // Update last login timestamp
         const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, {
-          lastLogin: serverTimestamp(),
-        });
+        const userDoc = await getDoc(userRef);
+        if(userDoc.exists()) {
+            await updateDoc(userRef, {
+              lastLogin: serverTimestamp(),
+            });
+        }
       } else {
         setUser(null);
       }
@@ -82,9 +85,13 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
+        let errorMessage = error.message;
+        if (error.code === 'auth/operation-not-allowed') {
+            errorMessage = 'Google Sign-In is not enabled for this project. Please enable it in the Firebase console.';
+        }
       toast({
         title: "Login Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
