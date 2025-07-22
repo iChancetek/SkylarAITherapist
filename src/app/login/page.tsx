@@ -36,7 +36,7 @@ export default function LoginPage() {
             iSkylar
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            Hello again. Skylar is ready to listen.
+            iSkylar is ready to listen.
           </p>
         </div>
         
