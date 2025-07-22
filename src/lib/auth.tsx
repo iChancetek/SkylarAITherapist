@@ -57,9 +57,6 @@ export const useFirebaseAuth = () => {
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      'auth_domain': 'iskylar.us'
-    });
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
