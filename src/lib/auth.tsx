@@ -82,6 +82,7 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
+        console.error("Full Google Sign-In Error:", error); // Log the full error
         let errorMessage = "An unknown error occurred during login.";
         if (error.code) {
             switch (error.code) {
@@ -90,6 +91,9 @@ export const useFirebaseAuth = () => {
                     break;
                 case 'auth/popup-closed-by-user':
                     errorMessage = 'The sign-in window was closed before completing. Please try again.';
+                    break;
+                case 'auth/unauthorized-domain':
+                    errorMessage = 'This domain is not authorized for authentication. Please check your Firebase settings.';
                     break;
                 default:
                     errorMessage = `Login Error: ${error.message}`;
