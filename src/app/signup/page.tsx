@@ -31,7 +31,7 @@ export default function SignupPage() {
        <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-            Create your Account
+            iSkylar
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
             Your AI Voice Therapist. Powered by Generative AI.
