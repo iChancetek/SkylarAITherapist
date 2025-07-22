@@ -8,9 +8,18 @@ export default {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       fontFamily: {
-        sans: ['var(--font-urbanist)', 'sans-serif'],
+        sans: ['var(--font-pt-sans)', 'sans-serif'],
+        headline: ['var(--font-pt-sans)', 'sans-serif'],
+        body: ['var(--font-pt-sans)', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -61,27 +70,15 @@ export default {
           from: {height: 'var(--radix-accordion-content-height)'},
           to: {height: '0'},
         },
-        'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--primary) / 0.7)' },
-          '50%': { boxShadow: '0 0 20px 5px hsl(var(--primary) / 0)' },
-        },
-         tilt: {
-          '0%, 50%, 100%': {
-            transform: 'rotate(0deg)',
-          },
-          '25%': {
-            transform: 'rotate(0.5deg)',
-          },
-          '75%': {
-            transform: 'rotate(-0.5deg)',
-          },
-        },
+        'pulse-lg': {
+          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+          '50%': { transform: 'scale(1.1)', opacity: '0.7' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'pulse-glow': 'pulse-glow 4s ease-out infinite',
-         tilt: 'tilt 10s infinite linear',
+        'pulse-lg': 'pulse-lg 2s infinite ease-in-out',
       },
     },
   },

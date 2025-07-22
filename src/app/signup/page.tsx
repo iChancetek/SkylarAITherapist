@@ -27,21 +27,21 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-[#1E1B4B] via-[#101020] to-[#0A0A10] p-4">
+    <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
        <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
             Create your Account
           </h1>
-          <p className="mt-4 text-lg text-blue-200/80">
+          <p className="mt-4 text-lg text-muted-foreground">
             Your AI Voice Therapist. Powered by Generative AI.
           </p>
         </div>
         
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/20 backdrop-blur-lg">
+        <div className="rounded-2xl border bg-card p-8 shadow-sm">
           <div className="space-y-6">
             <div className="grid gap-2">
-              <Label htmlFor="email" className="text-blue-100/90">Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -49,63 +49,59 @@ export default function SignupPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/50"
               />
             </div>
             <div className="grid gap-2 relative">
-                <Label htmlFor="password" className="text-blue-100/90">Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/50 pr-10"
+                    className="pr-10"
                 />
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-9 text-blue-200/70 hover:text-blue-100"
+                    className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
                 >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
             </div>
              <div className="grid gap-2 relative">
-                <Label htmlFor="confirm-password"className="text-blue-100/90">Confirm Password</Label>
+                <Label htmlFor="confirm-password">Confirm Password</Label>
                 <Input
                     id="confirm-password"
                     type={showConfirmPassword ? "text" : "password"}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/50 pr-10"
+                    className="pr-10"
                 />
                  <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-9 text-blue-200/70 hover:text-blue-100"
+                    className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
                 >
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
             </div>
-             <p className="text-xs text-blue-200/50 px-1">
+             <p className="text-xs text-muted-foreground px-1">
               Password must be at least 8 characters long and contain one number and one special character.
             </p>
-            <div className="relative pt-2">
-                 <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-                 <Button
-                    className="w-full relative"
-                    onClick={onSignUp}
-                >
-                    Create Account
-                </Button>
-            </div>
+            <Button
+                className="w-full"
+                onClick={onSignUp}
+            >
+                Create Account
+            </Button>
           </div>
         </div>
         
-        <p className="text-center text-sm text-blue-200/60">
+        <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-blue-300 hover:text-blue-200">
+          <Link href="/login" className="font-medium text-primary hover:underline">
             Sign In
           </Link>
         </p>

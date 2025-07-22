@@ -29,21 +29,21 @@ export default function LoginPage() {
   const { handleEmailPasswordLogin, handleGoogleSignIn } = useFirebaseAuth();
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-[#1E1B4B] via-[#101020] to-[#0A0A10] p-4">
+    <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
             iSkylar
           </h1>
-          <p className="mt-4 text-lg text-blue-200/80">
+          <p className="mt-4 text-lg text-muted-foreground">
             Hello again. Skylar is ready to listen.
           </p>
         </div>
         
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/20 backdrop-blur-lg">
+        <div className="rounded-2xl border bg-card p-8 shadow-sm">
           <div className="space-y-6">
              <div className="grid gap-2">
-              <Label htmlFor="email" className="text-blue-100/90">Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -51,13 +51,12 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/50"
               />
             </div>
             <div className="grid gap-2 relative">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password"className="text-blue-100/90">Password</Label>
-                 <Link href="#" className="text-sm text-blue-300 hover:text-blue-200">
+                <Label htmlFor="password">Password</Label>
+                 <Link href="#" className="text-sm text-primary hover:underline">
                     Forgot Password?
                 </Link>
               </div>
@@ -67,48 +66,45 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/50 pr-10"
+                className="pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-blue-200/70 hover:text-blue-100"
+                className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <div className="relative">
-                 <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-                <Button
-                    className="w-full relative"
-                    onClick={() => handleEmailPasswordLogin(email, password)}
-                >
-                    Sign in
-                </Button>
-            </div>
+            <Button
+                className="w-full"
+                onClick={() => handleEmailPasswordLogin(email, password)}
+            >
+                Sign in
+            </Button>
             
             <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-white/10"></div>
-              <span className="flex-shrink mx-4 text-xs uppercase text-white/30">
+              <div className="flex-grow border-t"></div>
+              <span className="flex-shrink mx-4 text-xs uppercase text-muted-foreground">
                 Or continue with
               </span>
-              <div className="flex-grow border-t border-white/10"></div>
+              <div className="flex-grow border-t"></div>
             </div>
 
             <Button
               variant="outline"
-              className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+              className="w-full"
               onClick={handleGoogleSignIn}
             >
-              <GoogleIcon className="mr-2 fill-white"/>
+              <GoogleIcon className="mr-2 fill-foreground"/>
               Sign in with Google
             </Button>
           </div>
         </div>
         
-        <p className="text-center text-sm text-blue-200/60">
+        <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-blue-300 hover:text-blue-200">
+          <Link href="/signup" className="font-medium text-primary hover:underline">
             Sign up
           </Link>
         </p>
