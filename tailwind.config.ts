@@ -17,9 +17,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-pt-sans)', 'sans-serif'],
-        headline: ['var(--font-pt-sans)', 'sans-serif'],
-        body: ['var(--font-pt-sans)', 'sans-serif'],
+        sans: ['var(--font-poppins)', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -73,12 +71,18 @@ export default {
         'pulse-lg': {
           '0%, 100%': { transform: 'scale(1)', opacity: '1' },
           '50%': { transform: 'scale(1.1)', opacity: '0.7' },
+        },
+        'bgShift': {
+          '0%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+          '100%': { backgroundPosition: '0% 50%' },
         }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'pulse-lg': 'pulse-lg 2s infinite ease-in-out',
+        'bgShift': 'bgShift 15s ease infinite',
       },
     },
   },

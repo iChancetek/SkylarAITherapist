@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/lib/auth';
-import { PT_Sans } from 'next/font/google';
+import { Poppins } from 'next/font/google';
 
-const ptSans = PT_Sans({ subsets: ['latin'], weight: ['400', '700'] });
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
   title: 'iSkylar: AI Voice Therapy',
@@ -18,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${ptSans.className} antialiased`}>
+      <body className={`${poppins.className} antialiased`}>
         <AuthProvider>
           {children}
           <Toaster />

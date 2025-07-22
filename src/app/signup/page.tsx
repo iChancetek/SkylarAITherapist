@@ -19,7 +19,6 @@ export default function SignupPage() {
 
   const onSignUp = () => {
     if (password !== confirmPassword) {
-      // This should be a toast notification ideally
       alert("Passwords do not match.");
       return;
     }
@@ -27,22 +26,24 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-            iSkylar
+    <main className="flex min-h-screen w-full items-center justify-center p-4 animated-gradient">
+      <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 items-center gap-8">
+        <div className="text-white text-center md:text-left">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
+            Create Your Account
           </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Your AI Voice Therapist. Powered by Generative AI.
+          <p className="mt-4 text-lg text-white/80">
+            Join iSkylar and start your journey. Powered by Generative AI.
           </p>
         </div>
-        
-        <div className="rounded-2xl border bg-card p-8 shadow-sm">
-          <div className="space-y-6">
+
+        <div className="w-full max-w-md bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+          <div className="space-y-4">
+            <h2 className="text-3xl font-bold text-white text-center">Sign Up</h2>
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label className="text-white/80" htmlFor="email">Email</Label>
               <Input
+                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
                 id="email"
                 type="email"
                 placeholder="m@example.com"
@@ -52,59 +53,58 @@ export default function SignupPage() {
               />
             </div>
             <div className="grid gap-2 relative">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pr-10"
-                />
-                <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
-                >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              <Label className="text-white/80" htmlFor="password">Password</Label>
+              <Input
+                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-9 text-white/50 hover:text-white"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-             <div className="grid gap-2 relative">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
-                <Input
-                    id="confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pr-10"
-                />
-                 <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
-                >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            <div className="grid gap-2 relative">
+              <Label className="text-white/80" htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                id="confirm-password"
+                type={showConfirmPassword ? "text" : "password"}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-9 text-white/50 hover:text-white"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-             <p className="text-xs text-muted-foreground px-1">
-              Password must be at least 8 characters long and contain one number and one special character.
+            <p className="text-xs text-white/60 px-1">
+              Password must be at least 8 characters long.
             </p>
             <Button
-                className="w-full"
-                onClick={onSignUp}
+              className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold text-base shadow-lg transition-all duration-300 transform hover:scale-105"
+              onClick={onSignUp}
             >
-                Create Account
+              Create Account
             </Button>
           </div>
+          <p className="mt-6 text-center text-sm text-white/70">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-sky-300 hover:underline">
+              Sign In
+            </Link>
+          </p>
         </div>
-        
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
-            Sign In
-          </Link>
-        </p>
       </div>
     </main>
   );
