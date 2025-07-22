@@ -82,26 +82,10 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
-        console.error("Full Google Sign-In Error:", error); // Log the full error
-        let errorMessage = "An unknown error occurred during login.";
-        if (error.code) {
-            switch (error.code) {
-                case 'auth/operation-not-allowed':
-                    errorMessage = 'Google Sign-In is not enabled. Please enable it in the Firebase console.';
-                    break;
-                case 'auth/popup-closed-by-user':
-                    errorMessage = 'The sign-in window was closed before completing. Please try again.';
-                    break;
-                case 'auth/unauthorized-domain':
-                    errorMessage = 'This domain is not authorized for authentication. Please check your Firebase settings.';
-                    break;
-                default:
-                    errorMessage = `Login Error: ${error.message}`;
-            }
-        }
+      console.error("Google Sign-In Error:", error);
       toast({
         title: "Login Error",
-        description: errorMessage,
+        description: error.message,
         variant: "destructive",
       });
     }
