@@ -128,6 +128,7 @@ export const useFirebaseAuth = () => {
     }
 
     try {
+        await setPersistence(auth, browserLocalPersistence);
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const user = userCredential.user;
 
