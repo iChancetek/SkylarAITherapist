@@ -72,7 +72,7 @@ export function UserMenu() {
     <div className="absolute top-4 right-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-3 rounded-full bg-white/20 p-2 pr-4 text-white backdrop-blur-sm transition-colors hover:bg-white/30">
+          <button className="flex items-center gap-3 rounded-full bg-background/20 p-2 pr-4 text-foreground backdrop-blur-sm transition-colors hover:bg-background/30">
             <Avatar className="h-8 w-8">
               <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? "User"} />
               <AvatarFallback>{getInitials(displayName)}</AvatarFallback>

@@ -30,22 +30,22 @@ export default function SignupPage() {
   return (
     <main className="relative flex min-h-screen w-full items-center justify-center p-4 static-gradient">
       <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 items-center gap-8">
-        <div className="text-white text-center md:text-left">
+        <div className="text-foreground text-center md:text-left">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             iSkylar
           </h1>
-          <p className="mt-4 text-lg text-white/80">
+          <p className="mt-4 text-lg text-foreground/80">
             Your AI Voice Therapist. Powered by Generative AI.
           </p>
         </div>
 
         <div className="w-full max-w-md bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
           <div className="space-y-4">
-            <h2 className="text-3xl font-bold text-white text-center">Create Account</h2>
+            <h2 className="text-3xl font-bold text-foreground text-center">Create Account</h2>
             <div className="grid gap-2">
-              <Label className="text-white/80" htmlFor="fullName">Full Name</Label>
+              <Label className="text-foreground/80" htmlFor="fullName">Full Name</Label>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="fullName"
                 type="text"
                 placeholder="Jane Doe"
@@ -55,9 +55,9 @@ export default function SignupPage() {
               />
             </div>
              <div className="grid gap-2">
-              <Label className="text-white/80" htmlFor="username">Username</Label>
+              <Label className="text-foreground/80" htmlFor="username">Username</Label>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="username"
                 type="text"
                 placeholder="jane_doe"
@@ -67,9 +67,9 @@ export default function SignupPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label className="text-white/80" htmlFor="email">Email</Label>
+              <Label className="text-foreground/80" htmlFor="email">Email</Label>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="email"
                 type="email"
                 placeholder="m@example.com"
@@ -79,9 +79,9 @@ export default function SignupPage() {
               />
             </div>
             <div className="grid gap-2 relative">
-              <Label className="text-white/80" htmlFor="password">Password</Label>
+              <Label className="text-foreground/80" htmlFor="password">Password</Label>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
@@ -91,15 +91,15 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-white/50 hover:text-white"
+                className="absolute right-3 top-9 text-foreground/50 hover:text-foreground"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             <div className="grid gap-2 relative">
-              <Label className="text-white/80" htmlFor="confirm-password">Confirm Password</Label>
+              <Label className="text-foreground/80" htmlFor="confirm-password">Confirm Password</Label>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="confirm-password"
                 type={showConfirmPassword ? "text" : "password"}
                 required
@@ -109,12 +109,12 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-9 text-white/50 hover:text-white"
+                className="absolute right-3 top-9 text-foreground/50 hover:text-foreground"
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="text-xs text-white/60 px-1">
+            <p className="text-xs text-foreground/60 px-1">
               Password must be at least 8 characters long, with one number and one special character.
             </p>
             <Button
@@ -124,15 +124,15 @@ export default function SignupPage() {
               Create Account
             </Button>
           </div>
-          <p className="mt-6 text-center text-sm text-white/70">
+          <p className="mt-6 text-center text-sm text-foreground/70">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-sky-300 hover:underline">
+            <Link href="/login" className="font-medium text-sky-500 hover:underline">
               Sign In
             </Link>
           </p>
         </div>
       </div>
-      <p className="absolute bottom-4 text-center text-xs text-white/50">Developed by ChanceTEK LLC | iSynera LLC</p>
+      <p className="absolute bottom-4 text-center text-xs text-foreground/50">Developed by ChanceTEK LLC | iSynera LLC</p>
     </main>
   );
 }

@@ -309,32 +309,32 @@ export default function VoiceInterface() {
   return (
     <div className="relative flex flex-col h-full w-full items-center justify-between font-body text-foreground overflow-hidden">
      
-      <div className="relative z-10 flex flex-col w-full max-w-2xl mx-auto p-4">
-        <header className="w-full flex flex-col items-center text-center text-white pt-8">
+      <div className="relative z-10 flex flex-col w-full max-w-2xl mx-auto p-4 flex-grow justify-start">
+        <header className="w-full flex flex-col items-center text-center text-foreground pt-8">
           <h1 className="text-4xl font-bold tracking-tight drop-shadow-lg">iSkylar</h1>
-          <p className="text-white/80 drop-shadow-md">Your AI Voice Therapist</p>
+          <p className="text-foreground/80 drop-shadow-md">Your AI Voice Therapist</p>
         </header>
       </div>
       
-      <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-2xl mx-auto p-4">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-2xl mx-auto p-4 flex-shrink-0">
         <footer className="w-full pt-4 flex flex-col items-center justify-center space-y-3 h-32">
         {!sessionStarted ? (
-            <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-white/30 text-white backdrop-blur-md border border-white/40 hover:bg-white/40 h-14 text-lg">
+            <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-primary text-primary-foreground backdrop-blur-md border border-primary/40 hover:bg-primary/90 h-14 text-lg">
             {isInitializing && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
             Start Session
             </Button>
         ) : (
-            <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-24 w-24 bg-white/30 hover:bg-white/40 backdrop-blur-md border-2 border-white/50 shadow-2xl">
-            <Mic className={cn("size-12 text-white transition-all", isListening ? "scale-110 drop-shadow-lg" : "opacity-80")} />
+            <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-24 w-24 bg-primary/20 hover:bg-primary/30 backdrop-blur-md border-2 border-primary/50 shadow-2xl">
+            <Mic className={cn("size-12 text-foreground transition-all", isListening ? "scale-110 drop-shadow-lg text-primary" : "opacity-80")} />
             </Button>
         )}
-        <p className="text-sm text-white/80 h-5 text-center drop-shadow-md">{getStatusText()}</p>
+        <p className="text-sm text-foreground/80 h-5 text-center drop-shadow-md">{getStatusText()}</p>
         </footer>
       </div>
 
        {sessionStarted && (
         <>
-            <Button variant="outline" size="icon" className="absolute top-4 left-4 z-20 bg-white/30 text-white backdrop-blur-md border-white/40 hover:bg-white/40" onClick={() => setShowChat(true)}>
+            <Button variant="outline" size="icon" className="absolute top-4 left-4 z-20 bg-background/30 text-foreground backdrop-blur-md border-border/40 hover:bg-background/40" onClick={() => setShowChat(true)}>
                 <MessageSquare />
             </Button>
             <div className={cn(

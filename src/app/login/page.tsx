@@ -34,22 +34,22 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen w-full items-center justify-center p-4 static-gradient">
       <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 items-center gap-8">
-        <div className="text-white text-center md:text-left">
+        <div className="text-foreground text-center md:text-left">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             Welcome to iSkylar
           </h1>
-          <p className="mt-4 text-lg text-white/80">
+          <p className="mt-4 text-lg text-foreground/80">
             Your AI Voice Therapist. Powered by Generative AI. iSkylar is ready to listen.
           </p>
         </div>
 
         <div className="w-full max-w-md bg-white/20 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
           <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-white text-center">Sign In</h2>
+            <h2 className="text-3xl font-bold text-foreground text-center">Sign In</h2>
             <div className="grid gap-2">
-              <Label className="text-white/80" htmlFor="email">Email</Label>
+              <Label className="text-foreground/80" htmlFor="email">Email</Label>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="email"
                 type="email"
                 placeholder="m@example.com"
@@ -60,13 +60,13 @@ export default function LoginPage() {
             </div>
             <div className="grid gap-2 relative">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80" htmlFor="password">Password</Label>
-                <Link href="#" className="text-sm text-sky-300 hover:underline">
+                <Label className="text-foreground/80" htmlFor="password">Password</Label>
+                <Link href="#" className="text-sm text-sky-500 hover:underline">
                   Forgot Password?
                 </Link>
               </div>
               <Input
-                className="bg-white/10 text-white border-white/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-white/50"
+                className="bg-black/10 text-foreground border-black/20 focus:ring-sky-400 focus:border-sky-400 placeholder:text-foreground/50"
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
@@ -76,7 +76,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-white/50 hover:text-white"
+                className="absolute right-3 top-9 text-foreground/50 hover:text-foreground"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -89,11 +89,11 @@ export default function LoginPage() {
             </Button>
             
             <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-white/20"></div>
-              <span className="flex-shrink mx-4 text-xs uppercase text-white/50">
+              <div className="flex-grow border-t border-black/20"></div>
+              <span className="flex-shrink mx-4 text-xs uppercase text-foreground/50">
                 Or continue with
               </span>
-              <div className="flex-grow border-t border-white/20"></div>
+              <div className="flex-grow border-t border-black/20"></div>
             </div>
 
             <Button
@@ -105,15 +105,15 @@ export default function LoginPage() {
               Sign in with Google
             </Button>
           </div>
-          <p className="mt-8 text-center text-sm text-white/70">
+          <p className="mt-8 text-center text-sm text-foreground/70">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="font-medium text-sky-300 hover:underline">
+            <Link href="/signup" className="font-medium text-sky-500 hover:underline">
               Create Account
             </Link>
           </p>
         </div>
       </div>
-       <p className="absolute bottom-4 text-center text-xs text-white/50">Developed by ChanceTEK LLC | iSynera LLC</p>
+       <p className="absolute bottom-4 text-center text-xs text-foreground/50">Developed by ChanceTEK LLC | iSynera LLC</p>
     </main>
   );
 }
