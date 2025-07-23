@@ -13,7 +13,7 @@ import { TextToSpeechOutputSchema, type TextToSpeechOutput } from '@/ai/schema/t
 // Map language codes to specific voices. This can be expanded.
 const languageToVoice: Record<string, string> = {
     'en': 'vindemiatrix', // English
-    'es': 'calisto',      // Spanish
+    'es': 'zubenelgenubi',      // Spanish
     'zh': 'gacrux',       // Mandarin
     'sw': 'algenib',      // Swahili
     'hi': 'achernar',     // Hindi
