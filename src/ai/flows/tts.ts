@@ -14,10 +14,10 @@ import { TextToSpeechOutputSchema, type TextToSpeechOutput } from '@/ai/schema/t
 const languageToVoice: Record<string, string> = {
     'en': 'vindemiatrix', // English
     'es': 'calisto',      // Spanish
-    'zh': 'gemini-pro',   // Mandarin (Using a general voice, can be refined)
-    'sw': 'gemini-pro',   // Swahili
-    'hi': 'gemini-pro',   // Hindi
-    'he': 'gemini-pro',   // Hebrew
+    'zh': 'gacrux',       // Mandarin
+    'sw': 'algenib',      // Swahili
+    'hi': 'achernar',     // Hindi
+    'he': 'algieba',      // Hebrew
 };
 
 export async function textToSpeech(text: string, language: string = 'en'): Promise<TextToSpeechOutput> {
