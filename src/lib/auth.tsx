@@ -23,19 +23,51 @@ import { Loader2 } from "lucide-react";
 // Initialize Firebase Auth
 const auth = getAuth(app);
 
-export const AuthContext = createContext<{ user: User | null }>({
+interface UserProfile {
+    uid: string;
+    email: string | null;
+    fullName: string | null;
+    username: string | null;
+    profileImage: string | null;
+    createdAt: any; 
+    lastLogin: any;
+    role: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  userProfile: UserProfile | null;
+  loading: boolean;
+}
+
+export const AuthContext = createContext<AuthContextType>({
   user: null,
+  userProfile: null,
+  loading: true,
 });
 
 export const useAuthContext = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data() as UserProfile);
+        } else {
+            // Handle case where user exists in Auth but not Firestore
+            setUserProfile(null); 
+        }
+      } else {
+        setUserProfile(null);
+      }
       setLoading(false);
     });
 
@@ -43,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user }}>
+    <AuthContext.Provider value={{ user, userProfile, loading }}>
       {loading ? <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : children}
     </AuthContext.Provider>
   );

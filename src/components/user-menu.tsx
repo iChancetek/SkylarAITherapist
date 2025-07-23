@@ -1,0 +1,82 @@
+
+"use client";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthContext, useFirebaseAuth } from "@/lib/auth";
+import { LogOut, Moon, Sun, Lock } from "lucide-react";
+import { useTheme } from "@/hooks/use-theme";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+
+export function UserMenu() {
+  const { user, userProfile } = useAuthContext();
+  const { handleLogout } = useFirebaseAuth();
+  const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
+
+  if (!user) return null;
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "U";
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+  
+  const handlePasswordChange = () => {
+    toast({
+        title: "Feature Not Implemented",
+        description: "The ability to change passwords is not yet available.",
+    });
+  }
+
+  const displayName = userProfile?.fullName || user.displayName || user.email;
+  const avatarUrl = userProfile?.profileImage || user.photoURL;
+
+  return (
+    <div className="absolute top-4 right-4">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-3 rounded-full bg-white/20 p-2 pr-4 text-white backdrop-blur-sm transition-colors hover:bg-white/30">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? "User"} />
+              <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+            </Avatar>
+            <span className="hidden text-sm font-medium md:block">{displayName}</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end">
+          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="flex items-center justify-between focus:bg-inherit" onSelect={(e) => e.preventDefault()}>
+            <Label htmlFor="theme-switch" className="flex items-center gap-2 font-normal">
+              {theme === "dark" ? <Moon /> : <Sun />}
+              Theme
+            </Label>
+            <Switch
+              id="theme-switch"
+              checked={theme === "dark"}
+              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handlePasswordChange}>
+            <Lock className="mr-2 h-4 w-4" />
+            <span>Change Password</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Log out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
