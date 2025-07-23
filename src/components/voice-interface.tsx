@@ -20,6 +20,8 @@ interface ChatMessage {
   icon?: React.ElementType;
 }
 
+type SkylarLook = "neutral" | "listening" | "speaking";
+
 export default function VoiceInterface() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -30,6 +32,7 @@ export default function VoiceInterface() {
   const [showChat, setShowChat] = useState(false);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
   const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
+  const [currentLook, setCurrentLook] = useState<SkylarLook>("neutral");
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -37,6 +40,20 @@ export default function VoiceInterface() {
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!sessionStarted) {
+        setCurrentLook("neutral");
+        return;
+    }
+    if (isSpeaking) {
+        setCurrentLook("speaking");
+    } else if (isListening) {
+        setCurrentLook("listening");
+    } else {
+        setCurrentLook("neutral");
+    }
+  }, [isListening, isSpeaking, sessionStarted]);
 
   const initializeAudioContext = useCallback(() => {
     if (window.AudioContext || window.webkitAudioContext) {
@@ -295,20 +312,41 @@ export default function VoiceInterface() {
   
   return (
     <div className="relative flex flex-col h-screen w-full items-center justify-center font-body text-foreground overflow-hidden">
-      <div className="absolute inset-0 z-0">
-         <Image 
-            src="https://placehold.co/1200x1800.png" 
-            alt="iSkylar, your AI Voice Therapist"
-            data-ai-hint="woman professional smiling"
-            fill
-            className={cn(
-                "object-cover object-top transition-all duration-1000 ease-in-out",
-                sessionStarted ? "scale-100 blur-none" : "scale-110 blur-sm",
-                isSpeaking ? "animate-breathing-scale" : ""
-            )}
-            priority
-        />
-        <div className="absolute inset-0 bg-black/30"></div>
+        <div className="absolute inset-0 z-0">
+            <Image
+                src="https://placehold.co/1200x1800.png"
+                alt="iSkylar's neutral expression"
+                data-ai-hint="woman professional smiling"
+                fill
+                className={cn(
+                    "object-cover object-top transition-opacity duration-1000 ease-in-out",
+                    currentLook === 'neutral' ? 'opacity-100' : 'opacity-0'
+                )}
+                priority
+            />
+            <Image
+                src="https://placehold.co/1200x1800.png"
+                alt="iSkylar's listening expression"
+                data-ai-hint="woman professional listening intently"
+                fill
+                className={cn(
+                    "object-cover object-top transition-opacity duration-1000 ease-in-out",
+                    currentLook === 'listening' ? 'opacity-100' : 'opacity-0'
+                )}
+                priority
+            />
+            <Image
+                src="https://placehold.co/1200x1800.png"
+                alt="iSkylar's speaking expression"
+                data-ai-hint="woman professional speaking warmly"
+                fill
+                className={cn(
+                    "object-cover object-top transition-opacity duration-1000 ease-in-out",
+                     currentLook === 'speaking' ? 'opacity-100 animate-breathing-scale' : 'opacity-0'
+                )}
+                priority
+            />
+         <div className="absolute inset-0 bg-black/30"></div>
       </div>
      
       <div className="relative z-10 flex flex-col h-full w-full max-w-2xl mx-auto p-4 items-center">
