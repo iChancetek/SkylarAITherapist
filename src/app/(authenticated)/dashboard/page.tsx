@@ -22,9 +22,9 @@ export default function DashboardPage() {
   }
   
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen animated-gradient">
       <div className="absolute top-4 right-4">
-        <Button onClick={handleLogout} variant="outline">Logout</Button>
+        <Button onClick={handleLogout} variant="outline" className="bg-white/30 backdrop-blur-sm">Logout</Button>
       </div>
       <VoiceInterface />
     </main>

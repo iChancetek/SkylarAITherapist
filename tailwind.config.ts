@@ -17,7 +17,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-poppins)', 'sans-serif'],
+        sans: ['var(--font-pt-sans)', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -82,7 +82,7 @@ export default {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'pulse-lg': 'pulse-lg 2s infinite ease-in-out',
-        'bgShift': 'bgShift 15s ease infinite',
+        'bgShift': 'bgShift 20s ease infinite',
       },
     },
   },

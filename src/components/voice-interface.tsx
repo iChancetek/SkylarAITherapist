@@ -287,7 +287,7 @@ export default function VoiceInterface() {
   }
   
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body bg-background text-foreground">
+    <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body text-foreground">
       <header className="mb-4 flex flex-col items-center text-center">
         <h1 className="text-4xl font-headline font-bold text-foreground">iSkylar</h1>
         <p className="text-muted-foreground">Your AI Voice Therapist</p>
@@ -298,9 +298,9 @@ export default function VoiceInterface() {
           {chatHistory.map((msg) => (
             <Card
               key={msg.id}
-              className={`w-fit max-w-[85%] rounded-xl shadow-md ${
-                msg.speaker === "user" ? "ml-auto bg-accent text-accent-foreground" :
-                msg.speaker === "iSkylar" ? "bg-card text-card-foreground border-primary/30" : 
+              className={`w-fit max-w-[85%] rounded-xl shadow-md bg-white/40 backdrop-blur-sm ${
+                msg.speaker === "user" ? "ml-auto bg-accent/80 text-accent-foreground" :
+                msg.speaker === "iSkylar" ? "bg-card/70 text-card-foreground border-primary/30" : 
                 "bg-destructive/20 text-destructive-foreground mx-auto border-destructive" 
               }`}
             >
@@ -308,7 +308,7 @@ export default function VoiceInterface() {
                 <div className="flex items-start space-x-2">
                   {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
                     msg.speaker === "user" ? "text-accent-foreground" :
-                    msg.speaker === "iSkylar" ? "text-primary-foreground" :
+                    msg.speaker === "iSkylar" ? "text-primary" :
                     "text-destructive"
                   }`} />}
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
@@ -324,18 +324,18 @@ export default function VoiceInterface() {
             )}
         </div>
       </ScrollArea>
-      <footer className="pt-4 border-t border-border flex flex-col items-center justify-center space-y-2 h-24">
+      <footer className="pt-4 border-t border-white/20 flex flex-col items-center justify-center space-y-2 h-24">
         {!sessionStarted ? (
           <Button onClick={handleStartSession} disabled={isInitializing} size="lg">
             {isInitializing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Start Session
           </Button>
         ) : (
-          <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-20 w-20 bg-primary/20 hover:bg-primary/30">
-            <Mic className={`size-10 text-primary-foreground transition-opacity ${isListening ? 'animate-pulse-lg' : 'opacity-70'}`} />
+          <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-20 w-20 bg-white/30 hover:bg-white/40 backdrop-blur-sm">
+            <Mic className={`size-10 text-primary transition-opacity ${isListening ? 'animate-pulse-lg' : 'opacity-70'}`} />
           </Button>
         )}
-        <p className="text-sm text-muted-foreground h-4">{getStatusText()}</p>
+        <p className="text-sm text-white/80 h-4">{getStatusText()}</p>
       </footer>
     </div>
   );
