@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuthContext } from '@/lib/auth';
@@ -6,16 +7,18 @@ import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
-  const { user } = useAuthContext();
+  const { user, loading } = useAuthContext();
   const router = useRouter();
 
   useEffect(() => {
-    if (user) {
-      router.push("/dashboard");
-    } else {
-      router.push("/login");
+    if (!loading) {
+      if (user) {
+        router.push("/dashboard");
+      } else {
+        router.push("/login");
+      }
     }
-  }, [user, router]);
+  }, [user, loading, router]);
   
   return (
     <div className="flex h-screen w-full items-center justify-center">

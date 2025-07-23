@@ -11,19 +11,18 @@ export default function AuthenticatedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useAuthContext();
+  const { user, loading } = useAuthContext();
   const router = useRouter();
 
   useEffect(() => {
-    // If the user is not logged in, redirect to the login page.
-    // The AuthProvider will handle the initial loading state.
-    if (user === null) {
+    // If the loading is finished and there's no user, redirect.
+    if (!loading && !user) {
       router.push("/login");
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
-  // While the user is being authenticated, you can show a loading state.
-  if (!user) {
+  // While the user is being authenticated, show a loading state.
+  if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
