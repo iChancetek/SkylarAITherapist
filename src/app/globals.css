@@ -60,7 +60,9 @@
 
 @layer utilities {
   .animated-gradient {
-    background: linear-gradient(270deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--background)));
+    background: 
+      linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)),
+      linear-gradient(270deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--background)));
     background-size: 600% 600%;
     animation: bgShift 20s ease infinite;
   }
