@@ -17,7 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthContext, useFirebaseAuth } from "@/lib/auth";
 import { LogOut, Moon, Sun, Lock, Languages } from "lucide-react";
-import { useTheme } from "@/hooks/use-theme";
+import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +34,7 @@ const languages = [
 
 export function UserMenu() {
   const { user, userProfile, updateUserProfile } = useAuthContext();
-  const { handleLogout } = useFirebaseAuth();
+  const { handleLogout, handlePasswordReset } = useFirebaseAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
@@ -45,11 +45,16 @@ export function UserMenu() {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
   
-  const handlePasswordChange = () => {
-    toast({
-        title: "Feature Not Implemented",
-        description: "The ability to change passwords is not yet available.",
-    });
+  const onPasswordChangeClick = () => {
+    if (user?.email) {
+      handlePasswordReset(user.email);
+    } else {
+       toast({
+        title: "Error",
+        description: "Could not find your email address to send a reset link.",
+        variant: "destructive"
+       });
+    }
   }
 
   const handleLanguageChange = async (langCode: string) => {
@@ -104,7 +109,7 @@ export function UserMenu() {
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem onClick={handlePasswordChange}>
+          <DropdownMenuItem onClick={onPasswordChangeClick}>
             <Lock className="mr-2 h-4 w-4" />
             <span>Change Password</span>
           </DropdownMenuItem>

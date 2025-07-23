@@ -13,6 +13,7 @@ import {
   signOut,
   setPersistence,
   browserLocalPersistence,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { app, db } from "./firebase";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
@@ -248,6 +249,30 @@ export const useFirebaseAuth = () => {
     }
   };
 
+  const handlePasswordReset = async (email: string) => {
+    if (!email) {
+      toast({
+        title: "Password Reset Error",
+        description: "Could not determine your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: "Password Reset Email Sent",
+        description: `An email has been sent to ${email} with instructions to reset your password.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Password Reset Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/login");
@@ -258,5 +283,6 @@ export const useFirebaseAuth = () => {
     handleEmailPasswordSignUp,
     handleEmailPasswordLogin,
     handleLogout,
+    handlePasswordReset,
   };
 };
