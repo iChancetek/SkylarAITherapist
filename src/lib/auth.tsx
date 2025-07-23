@@ -35,11 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
-      } else {
-        setUser(null);
-      }
+      setUser(user);
       setLoading(false);
     });
 
@@ -182,6 +178,7 @@ export const useFirebaseAuth = () => {
       });
       router.push("/dashboard");
     } catch (error: any) {
+      console.error("Login Error:", error.code, error.message);
       let title = "Login Error";
       let description = "An unexpected error occurred. Please try again.";
 
