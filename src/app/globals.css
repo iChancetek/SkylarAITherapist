@@ -59,17 +59,7 @@
 }
 
 @layer utilities {
-  .animated-gradient {
-    background: 
-      linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)),
-      linear-gradient(270deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--background)));
-    background-size: 600% 600%;
-    animation: bgShift 20s ease infinite;
-  }
-
-  @keyframes bgShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+  .static-gradient {
+    background: linear-gradient(to right, #6dd5ed, #2193b0);
   }
 }
