@@ -4,10 +4,13 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  "projectId": "skylar-ai-voice-therapy",
-  "storageBucket": "skylar-ai-voice-therapy.firebasestorage.app",
   "apiKey": "AIzaSyAoIOCJlx30-KHjb5MKU51GibpUBpazrWo",
   "authDomain": "skylar-ai-voice-therapy.firebaseapp.com",
+  "projectId": "skylar-ai-voice-therapy",
+  "storageBucket": "skylar-ai-voice-therapy.firebasestorage.app",
+  "messagingSenderId": "912062383164",
+  "appId": "1:912062383164:web:e985474325c7a38fe4c331",
+  "measurementId": "G-49VSZ61E7M"
 };
 
 // Initialize Firebase

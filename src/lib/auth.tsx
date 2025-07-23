@@ -86,7 +86,8 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
-      console.error("Google Sign-In Error:", error.code, error.message);
+      console.error("Google Sign-In Error Code:", error.code);
+      console.error("Google Sign-In Error Message:", error.message);
       
       let title = "Login Error";
       let description = "An unexpected error occurred. Please try again.";
@@ -181,7 +182,6 @@ export const useFirebaseAuth = () => {
       });
       router.push("/dashboard");
     } catch (error: any) {
-      console.error("Login Error:", error);
       let title = "Login Error";
       let description = "An unexpected error occurred. Please try again.";
 
