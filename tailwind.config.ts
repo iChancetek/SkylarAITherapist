@@ -78,17 +78,12 @@ export default {
           '50%': { backgroundPosition: '100% 50%' },
           '100%': { backgroundPosition: '0% 50%' },
         },
-        'breathing-scale': {
-            '0%, 100%': { transform: 'scale(1.02)' },
-            '50%': { transform: 'scale(1)' },
-        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'pulse-lg': 'pulse-lg 2s infinite ease-in-out',
         'bgShift': 'bgShift 20s ease infinite',
-        'breathing-scale': 'breathing-scale 8s ease-in-out infinite',
       },
     },
   },
