@@ -77,7 +77,7 @@ export default function DashboardPage() {
   }
   
   return (
-    <main className="relative min-h-screen w-full static-gradient">
+    <main className="relative min-h-screen w-full bg-background">
       <div className="relative z-10 flex h-full min-h-screen w-full flex-col items-center justify-center">
         <UserMenu />
         <VoiceInterface />
