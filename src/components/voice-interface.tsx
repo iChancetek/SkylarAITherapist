@@ -316,7 +316,7 @@ export default function VoiceInterface() {
             <Image
                 src="https://placehold.co/1200x1800.png"
                 alt="iSkylar's neutral expression"
-                data-ai-hint="woman professional smiling"
+                data-ai-hint="professional african american woman smiling"
                 fill
                 className={cn(
                     "object-cover object-top transition-opacity duration-1000 ease-in-out",
@@ -327,7 +327,7 @@ export default function VoiceInterface() {
             <Image
                 src="https://placehold.co/1200x1800.png"
                 alt="iSkylar's listening expression"
-                data-ai-hint="woman professional listening intently"
+                data-ai-hint="professional african american woman listening intently"
                 fill
                 className={cn(
                     "object-cover object-top transition-opacity duration-1000 ease-in-out",
@@ -338,7 +338,7 @@ export default function VoiceInterface() {
             <Image
                 src="https://placehold.co/1200x1800.png"
                 alt="iSkylar's speaking expression"
-                data-ai-hint="woman professional speaking warmly"
+                data-ai-hint="professional african american woman speaking warmly"
                 fill
                 className={cn(
                     "object-cover object-top transition-opacity duration-1000 ease-in-out",
