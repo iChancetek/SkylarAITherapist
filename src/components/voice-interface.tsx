@@ -1,14 +1,17 @@
+
 // @ts-nocheck
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mic, User, Brain, AlertTriangle, Loader2 } from "lucide-react";
+import { Mic, User, Brain, AlertTriangle, Loader2, MessageSquare, X } from "lucide-react";
 import { getSpokenResponse } from "@/ai/flows/get-spoken-response";
 import { getTextResponse } from "@/ai/flows/get-text-response";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ChatMessage {
   id: string;
@@ -24,6 +27,7 @@ export default function VoiceInterface() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [showChat, setShowChat] = useState(false);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
   const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
 
@@ -75,6 +79,7 @@ export default function VoiceInterface() {
                  sourceNodeRef.current = null;
                  if (sessionShouldEnd) {
                     setSessionStarted(false);
+                    setShowChat(false);
                     setSessionState(undefined);
                     setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
                 }
@@ -105,6 +110,7 @@ export default function VoiceInterface() {
 
         if (textResponse.sessionShouldEnd) {
             setSessionStarted(false);
+            setShowChat(false);
             setSessionState(undefined);
             setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
         }
@@ -213,6 +219,7 @@ export default function VoiceInterface() {
 
     setIsInitializing(true);
     setChatHistory([]);
+    setShowChat(true);
     setSessionStarted(true);
     try {
         const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined });
@@ -287,56 +294,94 @@ export default function VoiceInterface() {
   }
   
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto p-4 font-body text-foreground">
-      <header className="mb-4 flex flex-col items-center text-center">
-        <h1 className="text-4xl font-headline font-bold text-foreground">iSkylar</h1>
-        <p className="text-muted-foreground">Your AI Voice Therapist</p>
-      </header>
-      
-      <ScrollArea className="flex-grow mb-4 pr-4" ref={chatHistoryRef}>
-        <div className="space-y-4">
-          {chatHistory.map((msg) => (
-            <Card
-              key={msg.id}
-              className={`w-fit max-w-[85%] rounded-xl shadow-md bg-white/40 backdrop-blur-sm ${
-                msg.speaker === "user" ? "ml-auto bg-accent/80 text-accent-foreground" :
-                msg.speaker === "iSkylar" ? "bg-card/70 text-card-foreground border-primary/30" : 
-                "bg-destructive/20 text-destructive-foreground mx-auto border-destructive" 
-              }`}
-            >
-              <CardContent className="p-3">
-                <div className="flex items-start space-x-2">
-                  {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
-                    msg.speaker === "user" ? "text-accent-foreground" :
-                    msg.speaker === "iSkylar" ? "text-primary" :
-                    "text-destructive"
-                  }`} />}
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-            {(isSending || (isInitializing && sessionStarted)) && (
-              <div className="flex items-center space-x-2 p-4">
-                <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
-                <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
-              </div>
+    <div className="relative flex flex-col h-screen w-full items-center justify-center font-body text-foreground overflow-hidden">
+      <div className="absolute inset-0 z-0">
+         <Image 
+            src="https://placehold.co/1200x1800.png" 
+            alt="iSkylar, your AI Voice Therapist"
+            data-ai-hint="woman smiling professional"
+            fill
+            className={cn(
+                "object-cover object-top transition-all duration-1000 ease-in-out",
+                sessionStarted ? "scale-100 blur-none" : "scale-110 blur-sm",
+                isSpeaking ? "animate-breathing-scale" : ""
             )}
-        </div>
-      </ScrollArea>
-      <footer className="pt-4 border-t border-white/20 flex flex-col items-center justify-center space-y-2 h-24">
-        {!sessionStarted ? (
-          <Button onClick={handleStartSession} disabled={isInitializing} size="lg">
-            {isInitializing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Start Session
-          </Button>
-        ) : (
-          <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-20 w-20 bg-white/30 hover:bg-white/40 backdrop-blur-sm">
-            <Mic className={`size-10 text-primary transition-opacity ${isListening ? 'animate-pulse-lg' : 'opacity-70'}`} />
-          </Button>
-        )}
-        <p className="text-sm text-white/80 h-4">{getStatusText()}</p>
-      </footer>
+            priority
+        />
+        <div className="absolute inset-0 bg-black/30"></div>
+      </div>
+     
+      <div className="relative z-10 flex flex-col h-full w-full max-w-2xl mx-auto p-4 items-center">
+        <header className="mb-4 flex flex-col items-center text-center text-white">
+          <h1 className="text-4xl font-bold tracking-tight drop-shadow-lg">iSkylar</h1>
+          <p className="text-white/80 drop-shadow-md">Your AI Voice Therapist</p>
+        </header>
+        
+        <div className="flex-grow w-full" />
+
+        <footer className="w-full pt-4 flex flex-col items-center justify-center space-y-3 h-32">
+          {!sessionStarted ? (
+            <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-white/30 text-white backdrop-blur-md border border-white/40 hover:bg-white/40 h-14 text-lg">
+              {isInitializing && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+              Start Session
+            </Button>
+          ) : (
+            <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-24 w-24 bg-white/30 hover:bg-white/40 backdrop-blur-md border-2 border-white/50 shadow-2xl">
+              <Mic className={cn("size-12 text-white transition-all", isListening ? "scale-110 drop-shadow-lg" : "opacity-80")} />
+            </Button>
+          )}
+          <p className="text-sm text-white/80 h-5 text-center drop-shadow-md">{getStatusText()}</p>
+        </footer>
+      </div>
+
+       {sessionStarted && (
+        <>
+            <Button variant="outline" size="icon" className="absolute top-4 left-4 z-20 bg-white/30 text-white backdrop-blur-md border-white/40 hover:bg-white/40" onClick={() => setShowChat(true)}>
+                <MessageSquare />
+            </Button>
+            <div className={cn(
+                "absolute inset-0 z-20 h-full w-full bg-black/50 backdrop-blur-md transition-opacity duration-300",
+                showChat ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}>
+                <div className="relative flex flex-col h-full max-w-2xl mx-auto p-4 pt-16">
+                     <Button variant="ghost" size="icon" className="absolute top-4 right-4 z-30 text-white hover:bg-white/20 hover:text-white" onClick={() => setShowChat(false)}>
+                        <X />
+                    </Button>
+                    <ScrollArea className="flex-grow mb-4 pr-4" ref={chatHistoryRef}>
+                    <div className="space-y-4">
+                      {chatHistory.map((msg) => (
+                        <Card
+                          key={msg.id}
+                          className={`w-fit max-w-[85%] rounded-xl shadow-md ${
+                            msg.speaker === "user" ? "ml-auto bg-primary/90 text-primary-foreground" :
+                            msg.speaker === "iSkylar" ? "bg-card/90 text-card-foreground" : 
+                            "bg-destructive/90 text-destructive-foreground mx-auto" 
+                          }`}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex items-start space-x-2">
+                              {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
+                                msg.speaker === "user" ? "text-primary-foreground" :
+                                msg.speaker === "iSkylar" ? "text-primary" :
+                                "text-destructive"
+                              }`} />}
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                        {(isSending || (isInitializing && sessionStarted)) && (
+                        <div className="flex items-center space-x-2 p-4 bg-background/50 rounded-lg">
+                            <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
+                            <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
+                        </div>
+                        )}
+                    </div>
+                  </ScrollArea>
+                </div>
+            </div>
+        </>
+      )}
     </div>
   );
 }
