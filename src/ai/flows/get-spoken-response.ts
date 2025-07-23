@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow that generates a spoken response from iSkylar, including safety checks.
@@ -24,10 +25,12 @@ const getSpokenResponseFlow = ai.defineFlow(
     outputSchema: SpokenResponseOutputSchema,
   },
   async (input: SpokenResponseInput): Promise<SpokenResponseOutput> => {
+    const lang = input.language || 'en';
+    
     // If it's the start of the session, we skip the safety check and go straight to the greeting.
     if (input.userInput === "ISKYLAR_SESSION_START") {
-      const aiResult = await askiSkylar(input);
-      const ttsResult = await textToSpeech(aiResult.iSkylarResponse);
+      const aiResult = await askiSkylar({ ...input, language: lang });
+      const ttsResult = await textToSpeech(aiResult.iSkylarResponse, lang);
       return {
         isSafetyResponse: false,
         responseText: aiResult.iSkylarResponse,
@@ -40,12 +43,12 @@ const getSpokenResponseFlow = ai.defineFlow(
     // For subsequent messages, run safety check and therapy response in parallel.
     const [safetyResult, aiResult] = await Promise.all([
       safetyNetActivation({ userInput: input.userInput }),
-      askiSkylar(input)
+      askiSkylar({ ...input, language: lang })
     ]);
 
     // Prioritize the safety response if a risk is detected.
     if (safetyResult.safetyResponse && safetyResult.safetyResponse.trim() !== "") {
-      const ttsResult = await textToSpeech(safetyResult.safetyResponse);
+      const ttsResult = await textToSpeech(safetyResult.safetyResponse, lang);
       return {
         isSafetyResponse: true,
         responseText: safetyResult.safetyResponse,
@@ -56,7 +59,7 @@ const getSpokenResponseFlow = ai.defineFlow(
     }
 
     // If no safety issues, proceed with the standard therapy response.
-    const ttsResult = await textToSpeech(aiResult.iSkylarResponse);
+    const ttsResult = await textToSpeech(aiResult.iSkylarResponse, lang);
 
     return {
       isSafetyResponse: false,

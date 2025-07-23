@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 "use client";
 
@@ -10,6 +11,7 @@ import { getTextResponse } from "@/ai/flows/get-text-response";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/lib/auth";
 
 interface ChatMessage {
   id: string;
@@ -28,13 +30,16 @@ export default function VoiceInterface() {
   const [showChat, setShowChat] = useState(false);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
   const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
-
+  
+  const { userProfile } = useAuthContext();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
+
+  const language = userProfile?.language || 'en';
 
   const initializeAudioContext = useCallback(() => {
     if (window.AudioContext || window.webkitAudioContext) {
@@ -95,7 +100,7 @@ export default function VoiceInterface() {
   
   const handleTextOnlyResponse = useCallback(async (userInput: string) => {
     try {
-        const textResponse = await getTextResponse({ userInput, sessionState });
+        const textResponse = await getTextResponse({ userInput, sessionState, language });
         setSessionState(textResponse.updatedSessionState);
 
         const message = {
@@ -116,7 +121,7 @@ export default function VoiceInterface() {
         console.error("Error during text-only fallback:", fallbackError);
         toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
     }
-  }, [sessionState, toast]);
+  }, [sessionState, toast, language]);
 
   const handleSendMessage = useCallback(async (userInput: string) => {
     const finalUserInput = userInput.trim();
@@ -132,7 +137,7 @@ export default function VoiceInterface() {
     }
     
     try {
-        const response = await getSpokenResponse({ userInput: finalUserInput, sessionState });
+        const response = await getSpokenResponse({ userInput: finalUserInput, sessionState, language });
         setSessionState(response.updatedSessionState);
         
         const message = {
@@ -165,7 +170,7 @@ export default function VoiceInterface() {
     } finally {
         setIsSending(false);
     }
-  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse]);
+  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -180,7 +185,7 @@ export default function VoiceInterface() {
 
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
-    recognition.lang = "en-US";
+    recognition.lang = language;
     recognition.interimResults = false;
     recognition.continuous = false;
 
@@ -203,7 +208,7 @@ export default function VoiceInterface() {
     };
     
     recognition.start();
-  }, [toast, handleSendMessage, isListening]);
+  }, [toast, handleSendMessage, isListening, language]);
   
   useEffect(() => {
     const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing && !isListening;
@@ -220,7 +225,7 @@ export default function VoiceInterface() {
     setShowChat(true);
     setSessionStarted(true);
     try {
-        const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined });
+        const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
         setSessionState(response.updatedSessionState);
 
         const greetingMessage = {
@@ -251,7 +256,7 @@ export default function VoiceInterface() {
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, playAudio, handleTextOnlyResponse, initializeAudioContext]);
+  }, [toast, playAudio, handleTextOnlyResponse, initializeAudioContext, language]);
   
   const handleMicClick = useCallback(() => {
     initializeAudioContext();

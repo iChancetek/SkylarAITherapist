@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow that generates a text response from iSkylar, including safety checks.
@@ -21,9 +22,11 @@ const getTextResponseFlow = ai.defineFlow(
     outputSchema: TextResponseOutputSchema,
   },
   async (input: TextResponseInput): Promise<TextResponseOutput> => {
+    const lang = input.language || 'en';
+
     // If it's the start of the session, we skip the safety check and go straight to the greeting.
     if (input.userInput === "ISKYLAR_SESSION_START") {
-      const aiResult = await askiSkylar(input);
+      const aiResult = await askiSkylar({ ...input, language: lang });
       return {
         isSafetyResponse: false,
         responseText: aiResult.iSkylarResponse,
@@ -35,7 +38,7 @@ const getTextResponseFlow = ai.defineFlow(
     // For subsequent messages, run safety check and therapy response in parallel.
     const [safetyResult, aiResult] = await Promise.all([
       safetyNetActivation({ userInput: input.userInput }),
-      askiSkylar(input)
+      askiSkylar({ ...input, language: lang })
     ]);
 
     // Prioritize the safety response if a risk is detected.

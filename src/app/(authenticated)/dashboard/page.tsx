@@ -9,6 +9,15 @@ import { UserMenu } from '@/components/user-menu';
 import { textToSpeech } from '@/ai/flows/tts';
 import { useToast } from '@/hooks/use-toast';
 
+const greetings: Record<string, { newUser: string, returningUser: string }> = {
+    'en': { newUser: "Hello {name}, it’s a pleasure to meet you. I’m here whenever you need someone to talk to.", returningUser: "Welcome back, {name}. I’m glad to see you again." },
+    'es': { newUser: "Hola {name}, es un placer conocerte. Estoy aquí cuando necesites a alguien con quien hablar.", returningUser: "Bienvenido de nuevo, {name}. Me alegro de verte otra vez." },
+    'zh': { newUser: "你好 {name}，很高兴认识你。如果你需要找人倾诉，我随时都在。", returningUser: "欢迎回来，{name}。很高兴再次见到你。" },
+    'sw': { newUser: "Habari {name}, ni furaha kukutana nawe. Niko hapa wakati wowote unapohitaji mtu wa kuzungumza naye.", returningUser: "Karibu tena, {name}. Nimefurahi kukuona tena." },
+    'hi': { newUser: "नमस्ते {name}, आपसे मिलकर खुशी हुई। जब भी आपको किसी से बात करने की ज़रूरत हो, मैं यहाँ हूँ।", returningUser: "वापस स्वागत है, {name}। आपको फिर से देखकर खुशी हुई।" },
+    'he': { newUser: "שלום {name}, נעים להכיר. אני כאן מתי שתצטרך מישהו לדבר איתו.", returningUser: "ברוך שובך, {name}. אני שמחה לראות אותך שוב." },
+};
+
 export default function DashboardPage() {
   const { user, userProfile, loading } = useAuthContext();
   const router = useRouter();
@@ -27,18 +36,16 @@ export default function DashboardPage() {
     const isNewUser = Math.abs(lastSignInTime - creationTime) < 5000;
     
     const userName = userProfile.fullName || user.email?.split('@')[0] || 'there';
-    const greetingText = isNewUser
-      ? `Hello ${userName}, it’s a pleasure to meet you. Welcome to the platform.`
-      : `Welcome back, ${userName}. Good to see you again.`;
+    const lang = userProfile.language || 'en';
 
+    const greetingTemplate = isNewUser ? greetings[lang]?.newUser : greetings[lang]?.returningUser;
+    const greetingText = greetingTemplate ? greetingTemplate.replace('{name}', userName) : greetings['en'].returningUser.replace('{name}', userName);
+    
     try {
-      const { audioDataUri } = await textToSpeech(greetingText);
+      const { audioDataUri } = await textToSpeech(greetingText, lang);
       const audio = new Audio(audioDataUri);
       audio.play().catch(e => {
-        // This catch handles the browser's autoplay policy.
-        // The user must interact with the page first.
-        // We can show a toast or a silent notification.
-        console.warn("Audio playback was blocked by the browser. A user interaction is required to play audio.");
+        console.warn("Audio playback was blocked by the browser. A user interaction is required to play audio.", e);
         toast({
           title: "Welcome!",
           description: "Click anywhere to enable sound."

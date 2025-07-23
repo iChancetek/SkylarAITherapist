@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A text-to-speech (TTS) flow for iSkylar.
@@ -9,15 +10,26 @@ import {googleAI} from '@genkit-ai/googleai';
 import wav from 'wav';
 import { TextToSpeechOutputSchema, type TextToSpeechOutput } from '@/ai/schema/tts';
 
-export async function textToSpeech(text: string): Promise<TextToSpeechOutput> {
+// Map language codes to specific voices. This can be expanded.
+const languageToVoice: Record<string, string> = {
+    'en': 'vindemiatrix', // English
+    'es': 'calisto',      // Spanish
+    'zh': 'gemini-pro',   // Mandarin (Using a general voice, can be refined)
+    'sw': 'gemini-pro',   // Swahili
+    'hi': 'gemini-pro',   // Hindi
+    'he': 'gemini-pro',   // Hebrew
+};
+
+export async function textToSpeech(text: string, language: string = 'en'): Promise<TextToSpeechOutput> {
+  const voiceName = languageToVoice[language] || 'vindemiatrix'; // Fallback to English voice
+
   const {media} = await ai.generate({
     model: googleAI.model('gemini-2.5-flash-preview-tts'),
     config: {
       responseModalities: ['AUDIO'],
       speechConfig: {
         voiceConfig: {
-          // A friendly, natural female voice.
-          prebuiltVoiceConfig: {voiceName: 'vindemiatrix'},
+          prebuiltVoiceConfig: { voiceName },
         },
       },
     },

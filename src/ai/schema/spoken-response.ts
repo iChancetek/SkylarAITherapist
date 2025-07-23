@@ -1,8 +1,10 @@
+
 import {z} from 'genkit';
 
 export const SpokenResponseInputSchema = z.object({
   userInput: z.string().describe('The user input from voice or text. Can be "ISKYLAR_SESSION_START" to initiate the session.'),
   sessionState: z.string().optional().describe('A JSON string representing the session state.'),
+  language: z.string().optional().default('en').describe('The language for the conversation (e.g., "en", "es").'),
 });
 export type SpokenResponseInput = z.infer<typeof SpokenResponseInputSchema>;
 

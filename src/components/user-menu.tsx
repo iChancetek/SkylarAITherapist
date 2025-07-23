@@ -8,17 +8,32 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthContext, useFirebaseAuth } from "@/lib/auth";
-import { LogOut, Moon, Sun, Lock } from "lucide-react";
+import { LogOut, Moon, Sun, Lock, Languages } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import React from "react";
+
+const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'zh', name: 'Mandarin' },
+    { code: 'sw', name: 'Swahili' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'he', name: 'Hebrew' },
+];
 
 export function UserMenu() {
-  const { user, userProfile } = useAuthContext();
+  const { user, userProfile, updateUserProfile } = useAuthContext();
   const { handleLogout } = useFirebaseAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
@@ -34,6 +49,14 @@ export function UserMenu() {
     toast({
         title: "Feature Not Implemented",
         description: "The ability to change passwords is not yet available.",
+    });
+  }
+
+  const handleLanguageChange = async (langCode: string) => {
+    await updateUserProfile({ language: langCode });
+    toast({
+        title: "Language Updated",
+        description: `Your language has been set to ${languages.find(l => l.code === langCode)?.name}.`,
     });
   }
 
@@ -56,7 +79,7 @@ export function UserMenu() {
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="flex items-center justify-between focus:bg-inherit" onSelect={(e) => e.preventDefault()}>
-            <Label htmlFor="theme-switch" className="flex items-center gap-2 font-normal">
+            <Label htmlFor="theme-switch" className="flex items-center gap-2 font-normal cursor-pointer">
               {theme === "dark" ? <Moon /> : <Sun />}
               Theme
             </Label>
@@ -66,6 +89,21 @@ export function UserMenu() {
               onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
             />
           </DropdownMenuItem>
+           <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Languages className="mr-2 h-4 w-4" />
+              <span>Language</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup value={userProfile?.language || 'en'} onValueChange={handleLanguageChange}>
+                {languages.map(lang => (
+                    <DropdownMenuRadioItem key={lang.code} value={lang.code}>
+                        {lang.name}
+                    </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem onClick={handlePasswordChange}>
             <Lock className="mr-2 h-4 w-4" />
             <span>Change Password</span>

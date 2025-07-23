@@ -32,18 +32,21 @@ interface UserProfile {
     createdAt: any; 
     lastLogin: any;
     role: string;
+    language?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   userProfile: null,
   loading: true,
+  updateUserProfile: async () => {},
 });
 
 export const useAuthContext = () => useContext(AuthContext);
@@ -52,19 +55,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchUserProfile = async (firebaseUser: User) => {
+    const userRef = doc(db, "users", firebaseUser.uid);
+    const userDoc = await getDoc(userRef);
+    if (userDoc.exists()) {
+      setUserProfile(userDoc.data() as UserProfile);
+    } else {
+      // This case might happen for users that existed in Auth but not in Firestore.
+      // A new profile will be created on their next sign-in.
+      setUserProfile(null);
+    }
+  };
+
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
+    if (user) {
+      const userRef = doc(db, "users", user.uid);
+      try {
+        await updateDoc(userRef, data);
+        setUserProfile(prevProfile => prevProfile ? { ...prevProfile, ...data } : null);
+      } catch (error) {
+        console.error("Error updating user profile:", error);
+        toast({ title: "Update Error", description: "Could not save your preferences.", variant: "destructive" });
+      }
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        const userRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
-        } else {
-            // Handle case where user exists in Auth but not Firestore
-            setUserProfile(null); 
-        }
+        await fetchUserProfile(user);
       } else {
         setUserProfile(null);
       }
@@ -75,7 +97,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, updateUserProfile }}>
       {loading ? <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : children}
     </AuthContext.Provider>
   );
@@ -106,6 +128,7 @@ export const useFirebaseAuth = () => {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
           role: "user",
+          language: "en", // Default language
         });
       } else {
          await updateDoc(userRef, {
@@ -167,6 +190,7 @@ export const useFirebaseAuth = () => {
             createdAt: serverTimestamp(),
             lastLogin: serverTimestamp(),
             role: "user",
+            language: "en", // Default language
         });
 
         router.push("/dashboard");
