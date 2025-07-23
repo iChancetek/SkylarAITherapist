@@ -299,7 +299,7 @@ export default function VoiceInterface() {
          <Image 
             src="https://placehold.co/1200x1800.png" 
             alt="iSkylar, your AI Voice Therapist"
-            data-ai-hint="woman smiling professional"
+            data-ai-hint="woman professional smiling"
             fill
             className={cn(
                 "object-cover object-top transition-all duration-1000 ease-in-out",
