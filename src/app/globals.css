@@ -60,6 +60,6 @@
 
 @layer utilities {
   .static-gradient {
-    background: radial-gradient(circle at top left, #f0f0f0, #e0e0e0);
+    background: radial-gradient(circle at top left, hsl(210, 40%, 15%), hsl(220, 30%, 5%));
   }
 }
