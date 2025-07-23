@@ -55,6 +55,16 @@ export default function VoiceInterface() {
   }, [toast]);
 
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
+    if (!audioDataUri) {
+      if (sessionShouldEnd) {
+        setSessionStarted(false);
+        setShowChat(false);
+        setSessionState(undefined);
+        setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+      }
+      return;
+    }
+    
     if (sourceNodeRef.current) {
         try { sourceNodeRef.current.stop(); } catch(e) {}
     }

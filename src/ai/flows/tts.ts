@@ -21,6 +21,11 @@ const languageToVoice: Record<string, string> = {
 };
 
 export async function textToSpeech(text: string, language: string = 'en'): Promise<TextToSpeechOutput> {
+  // If the input text is empty or just whitespace, don't call the TTS service.
+  if (!text || !text.trim()) {
+    return { audioDataUri: '' };
+  }
+  
   const voiceName = languageToVoice[language] || 'vindemiatrix'; // Fallback to English voice
 
   const {media} = await ai.generate({
