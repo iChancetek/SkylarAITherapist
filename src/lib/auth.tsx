@@ -86,21 +86,21 @@ export const useFirebaseAuth = () => {
       }
       router.push("/dashboard");
     } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
+      console.error("Google Sign-In Error:", error.code, error.message);
       
       let title = "Login Error";
       let description = "An unexpected error occurred. Please try again.";
 
       if (error.code === 'auth/unauthorized-domain') {
         title = "Domain Not Authorized";
-        description = "This domain is not authorized. Please check your Firebase and Google Cloud Console settings.";
+        description = "This domain is not authorized for Google Sign-In. Please check your Firebase and Google Cloud Console settings.";
       } else if (error.code === 'auth/popup-closed-by-user') {
         title = "Sign-In Cancelled";
         description = "You closed the sign-in window before completing the process.";
       } else if (error.code === 'permission-denied' || error.code === 'auth/permission-denied') {
         title = "Permission Denied";
         description = "Could not create or update user profile. Please check your Firestore security rules.";
-      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials' || error.code === 'auth/operation-not-allowed') {
         title = "Invalid Action";
         description = "The requested action is invalid. This may be due to a configuration issue in your Google Cloud Console OAuth settings.";
       }
@@ -145,7 +145,7 @@ export const useFirebaseAuth = () => {
         router.push("/dashboard");
 
     } catch (error: any) {
-        console.error("Sign-up Error:", error);
+        console.error("Sign-up Error:", error.code, error.message);
         let title = "Sign-up Error";
         let description = "An unexpected error occurred. Please try again.";
         
