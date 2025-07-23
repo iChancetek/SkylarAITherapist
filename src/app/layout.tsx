@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/lib/auth';
 import { PT_Sans } from 'next/font/google';
-import { NextThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/components/theme-provider';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${ptSans.className} antialiased`}>
-        <NextThemeProvider
+        <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
@@ -35,7 +35,7 @@ export default function RootLayout({
             {children}
             <Toaster />
           </AuthProvider>
-        </NextThemeProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
