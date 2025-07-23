@@ -5,7 +5,6 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   "projectId": "skylar-ai-voice-therapy",
-  "appId": "1:584729201545:web:cf415a8466017b55f56f58",
   "storageBucket": "skylar-ai-voice-therapy.firebasestorage.app",
   "apiKey": "AIzaSyAoIOCJlx30-KHjb5MKU51GibpUBpazrWo",
   "authDomain": "skylar-ai-voice-therapy.firebaseapp.com",
