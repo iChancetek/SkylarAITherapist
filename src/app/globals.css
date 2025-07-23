@@ -57,6 +57,6 @@
     @apply bg-background text-foreground;
   }
   .dark body {
-    background: radial-gradient(circle at top left, hsl(210, 40%, 15%), hsl(var(--background)));
+    background: radial-gradient(circle at top left, hsl(215, 40%, 15%), hsl(220, 30%, 5%));
   }
 }
