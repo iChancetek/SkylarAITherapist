@@ -58,6 +58,8 @@ export const useFirebaseAuth = () => {
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
       await setPersistence(auth, browserLocalPersistence);
+      // Explicitly setting auth.tenantId to null as a last resort for domain issues.
+      auth.tenantId = null; 
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
