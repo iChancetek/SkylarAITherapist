@@ -46,7 +46,7 @@ Session Flow:
 User Input:
 {{{userInput}}}
 
-Based on the user input and session state, provide 'iSkylarResponse', 'updatedSessionState', and 'sessionShouldEnd' if applicable. The 'updatedSessionState' is mandatory.
+Based on the user input and session state, provide 'iSkylarResponse', 'updatedSessionState', and 'sessionShouldEnd' if applicable. The 'updatedSessionState' MUST be a valid JSON string.
 `,
 });
 
@@ -56,15 +56,21 @@ const iSkylarConversationFlow = ai.defineFlow(
     inputSchema: iSkylarInputSchema,
     outputSchema: iSkylarOutputSchema,
   },
-  async (input: iSkylarInput) => {
-    const {output} = await iSkylarPrompt(input);
-    if (!output) {
+  async (input: iSkylarInput): Promise<iSkylarOutput> => {
+    try {
+        const {output} = await iSkylarPrompt(input);
+        if (!output) {
+            throw new Error("AI output was null or undefined.");
+        }
+        return output;
+    } catch (error) {
+        console.error("Error in iSkylarConversationFlow:", error);
+        // Return a safe, default response to prevent crashing the app.
         return {
-            iSkylarResponse: "I'm sorry, I'm having a little trouble responding right now. Could you try saying that again?",
-            updatedSessionState: input.sessionState,
+            iSkylarResponse: "I'm sorry, I'm having a little trouble right now. Can you say that again?",
+            updatedSessionState: input.sessionState, // Return the last valid state
             sessionShouldEnd: false,
         };
     }
-    return output;
   }
 );

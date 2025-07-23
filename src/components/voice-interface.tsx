@@ -294,25 +294,27 @@ export default function VoiceInterface() {
   return (
     <div className="relative flex flex-col h-full w-full items-center justify-center font-body text-foreground overflow-hidden">
      
-      <div className="relative z-10 flex flex-col h-full w-full max-w-2xl mx-auto p-4 items-center justify-between">
-        <header className="w-full flex flex-col items-center text-center text-white">
+      <div className="relative z-10 flex flex-col h-full w-full max-w-2xl mx-auto p-4">
+        <header className="w-full flex flex-col items-center text-center text-white pt-8">
           <h1 className="text-4xl font-bold tracking-tight drop-shadow-lg">iSkylar</h1>
           <p className="text-white/80 drop-shadow-md">Your AI Voice Therapist</p>
         </header>
         
-        <footer className="w-full pt-4 flex flex-col items-center justify-center space-y-3 h-32">
-          {!sessionStarted ? (
-            <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-white/30 text-white backdrop-blur-md border border-white/40 hover:bg-white/40 h-14 text-lg">
-              {isInitializing && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-              Start Session
-            </Button>
-          ) : (
-            <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-24 w-24 bg-white/30 hover:bg-white/40 backdrop-blur-md border-2 border-white/50 shadow-2xl">
-              <Mic className={cn("size-12 text-white transition-all", isListening ? "scale-110 drop-shadow-lg" : "opacity-80")} />
-            </Button>
-          )}
-          <p className="text-sm text-white/80 h-5 text-center drop-shadow-md">{getStatusText()}</p>
-        </footer>
+        <div className="flex-grow flex items-center justify-center">
+            <footer className="w-full pt-4 flex flex-col items-center justify-center space-y-3 h-32">
+            {!sessionStarted ? (
+                <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-white/30 text-white backdrop-blur-md border border-white/40 hover:bg-white/40 h-14 text-lg">
+                {isInitializing && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                Start Session
+                </Button>
+            ) : (
+                <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-24 w-24 bg-white/30 hover:bg-white/40 backdrop-blur-md border-2 border-white/50 shadow-2xl">
+                <Mic className={cn("size-12 text-white transition-all", isListening ? "scale-110 drop-shadow-lg" : "opacity-80")} />
+                </Button>
+            )}
+            <p className="text-sm text-white/80 h-5 text-center drop-shadow-md">{getStatusText()}</p>
+            </footer>
+        </div>
       </div>
 
        {sessionStarted && (
