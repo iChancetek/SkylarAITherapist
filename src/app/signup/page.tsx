@@ -29,7 +29,7 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen w-full items-center justify-center p-4 bg-background">
+    <main className="relative flex min-h-screen w-full items-center justify-center p-4">
       <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 items-center gap-8">
         <div className="text-foreground text-center md:text-left">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
