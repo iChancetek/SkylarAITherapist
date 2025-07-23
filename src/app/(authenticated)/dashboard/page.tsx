@@ -70,9 +70,12 @@ export default function DashboardPage() {
   }
   
   return (
-    <main className="min-h-screen animated-gradient">
-      <UserMenu />
-      <VoiceInterface />
+    <main className="relative min-h-screen w-full">
+      <div className="absolute inset-0 animated-gradient -z-10" />
+      <div className="relative z-0">
+        <UserMenu />
+        <VoiceInterface />
+      </div>
     </main>
   );
 }
