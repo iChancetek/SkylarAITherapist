@@ -1,0 +1,21 @@
+diff --git a/node_modules/handlebars/lib/index.js b/node_modules/handlebars/lib/index.js
+index 7208d3c..a0a53b5 100644
+--- a/node_modules/handlebars/lib/index.js
++++ b/node_modules/handlebars/lib/index.js
+@@ -1,5 +1,6 @@
+ // lib/index.js
+-require('./utils').log(require('../package.json').version);
++//This is a patch to remove the use of require.extensions, which is deprecated in newer versions of Node.js.
++//require('./utils').log(require('../package.json').version);
+ module.exports = require('./handlebars');
+ 
+ // Publish a Node.js require() handler for .handlebars and .hbs files
+@@ -10,7 +11,7 @@
+ // and require.extensions is deprecated.
+ 
+ /* istanbul ignore next */
+-if (require.extensions) {
++if (false) {
+   var fs = require('fs');
+   var ancesdir = require('ancesdir');
+   var R = require('resolve');
