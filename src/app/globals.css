@@ -60,6 +60,6 @@
 
 @layer utilities {
   .static-gradient {
-    background: linear-gradient(to right, #6dd5ed, #2193b0);
+    background: linear-gradient(to right, #3aa1bd, #176c86);
   }
 }
