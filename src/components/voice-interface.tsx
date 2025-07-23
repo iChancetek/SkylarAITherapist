@@ -294,14 +294,12 @@ export default function VoiceInterface() {
   return (
     <div className="relative flex flex-col h-full w-full items-center justify-center font-body text-foreground overflow-hidden">
      
-      <div className="relative z-10 flex flex-col h-full w-full max-w-2xl mx-auto p-4 items-center">
-        <header className="mb-4 flex flex-col items-center text-center text-white">
+      <div className="relative z-10 flex flex-col h-full w-full max-w-2xl mx-auto p-4 items-center justify-between">
+        <header className="w-full flex flex-col items-center text-center text-white">
           <h1 className="text-4xl font-bold tracking-tight drop-shadow-lg">iSkylar</h1>
           <p className="text-white/80 drop-shadow-md">Your AI Voice Therapist</p>
         </header>
         
-        <div className="flex-grow w-full" />
-
         <footer className="w-full pt-4 flex flex-col items-center justify-center space-y-3 h-32">
           {!sessionStarted ? (
             <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-white/30 text-white backdrop-blur-md border border-white/40 hover:bg-white/40 h-14 text-lg">
