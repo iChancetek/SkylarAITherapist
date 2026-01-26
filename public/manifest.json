@@ -26,13 +26,29 @@
     "categories": [
         "health",
         "medical",
-        "lifestyle"
+        "lifestyle",
+        "productivity"
     ],
     "screenshots": [
         {
             "src": "/screenshot-1.png",
             "sizes": "1080x1920",
-            "type": "image/png"
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "New Session",
+            "short_name": "Chat",
+            "description": "Start a new therapy session",
+            "url": "/?action=new_session",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
         }
     ]
 }

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mic, User, Brain, AlertTriangle, Loader2, MessageSquare, X } from "lucide-react";
+import { Mic, User, Brain, AlertTriangle, Loader2, MessageSquare, X, RefreshCw } from "lucide-react";
 import { getSpokenResponse } from "@/ai/flows/get-spoken-response";
 import { getTextResponse } from "@/ai/flows/get-text-response";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/auth";
 import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 // --- Type Definitions for Web Speech API & Legacy Audio Context ---
 
@@ -64,19 +65,24 @@ interface ChatMessage {
 }
 
 export default function VoiceInterface() {
+  // Persistent State
+  const [sessionStarted, setSessionStarted, isSessionStartedHydrated, clearSessionStarted] = usePersistedState('iskylar_session_started', false);
+  const [chatHistory, setChatHistory, isChatHistoryHydrated, clearChatHistory] = usePersistedState<ChatMessage[]>('iskylar_chat_history', []);
+  const [sessionState, setSessionState, isSessionStateHydrated, clearSessionState] = usePersistedState<string | undefined>('iskylar_session_state', undefined);
+
+  // Ephemeral State
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [showChat, setShowChat] = useState(false);
-  const [sessionState, setSessionState] = useState<string | undefined>(undefined);
   const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState<string>(""); // Track what iSkylar is currently saying
+  const [currentResponse, setCurrentResponse] = useState<string>("");
   const [wasInterrupted, setWasInterrupted] = useState(false);
   const [isFirstSession, setIsFirstSession] = useState(true);
   const sessionStartTimeRef = useRef<number>(0);
+
+  const isHydrated = isSessionStartedHydrated && isChatHistoryHydrated && isSessionStateHydrated;
 
   const { user, userProfile } = useAuthContext();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -115,12 +121,16 @@ export default function VoiceInterface() {
       }
     }
 
-    setSessionStarted(false);
-    setShowChat(false);
-    setSessionState(undefined);
+    // Clear persistent state on proper session end
+    clearSessionStarted();
     setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+    // We keep history visible for review, but "end" the active session flag.
+    // clearChatHistory(); // Optional: decided to keep history visible until new session
+    clearSessionState();
+
+    setShowChat(false);
     sessionStartTimeRef.current = 0;
-  }, [sessionState, user]);
+  }, [sessionState, user, clearSessionStarted, clearSessionState, setChatHistory]);
 
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
     if (!audioDataUri) {
@@ -287,6 +297,15 @@ export default function VoiceInterface() {
     recognition.start();
   }, [toast, handleSendMessage, isListening, language]);
 
+  // Resume session on hydration if active
+  useEffect(() => {
+    if (isHydrated && sessionStarted) {
+      setShowChat(true);
+      // Optional: Add a "Resumed" system message or toast
+      // toast({ title: "Session Resumed", description: "Welcome back." });
+    }
+  }, [isHydrated, sessionStarted]);
+
   useEffect(() => {
     const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing && !isListening;
     if (shouldBeListening) {
@@ -298,7 +317,8 @@ export default function VoiceInterface() {
     initializeAudioContext();
 
     setIsInitializing(true);
-    setChatHistory([]);
+    setIsInitializing(true);
+    clearChatHistory(); // Clear previous history on NEW session
     setShowChat(true);
     setSessionStarted(true);
     sessionStartTimeRef.current = Date.now(); // Track session start time
