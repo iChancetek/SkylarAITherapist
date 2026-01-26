@@ -4,6 +4,6 @@
 runConfig:
   maxInstances: 1
 
-# env:
-#   - variable: OPENAI_API_KEY
-#     secret: OPENAI_API_KEY
+env:
+  - variable: OPENAI_API_KEY
+    secret: OPENAI_API_KEY
