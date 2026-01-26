@@ -1,10 +1,12 @@
 
-import {z} from 'genkit';
+import { z } from 'genkit';
 
 export const iSkylarInputSchema = z.object({
   userInput: z.string().describe('The user input from voice or text. Can be "ISKYLAR_SESSION_START" to initiate the session.'),
-  sessionState: z.string().optional().describe('A JSON string representing the session state, including mood patterns, progress, previously mentioned goals, and user name if known. The AI must update this state and return it.'),
+  sessionState: z.string().optional().describe('A JSON string representing the session state, including conversational themes, emotional patterns, intervention readiness, user name if known, and topics. The AI must update this state and return it.'),
   language: z.string().optional().default('en').describe('The language for the conversation (e.g., "en", "es").'),
+  wasInterrupted: z.boolean().optional().describe('True if the user interrupted iSkylar mid-response.'),
+  interruptedDuring: z.string().optional().describe('What iSkylar was saying when interrupted, for context.'),
 });
 export type iSkylarInput = z.infer<typeof iSkylarInputSchema>;
 

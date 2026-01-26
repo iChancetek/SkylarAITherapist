@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/auth";
+import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
 
 interface ChatMessage {
   id: string;
@@ -30,163 +31,190 @@ export default function VoiceInterface() {
   const [showChat, setShowChat] = useState(false);
   const [sessionState, setSessionState] = useState<string | undefined>(undefined);
   const [isVoiceQuotaReached, setIsVoiceQuotaReached] = useState(false);
-  
+  const [currentResponse, setCurrentResponse] = useState<string>(""); // Track what iSkylar is currently saying
+  const [wasInterrupted, setWasInterrupted] = useState(false);
+  const [isFirstSession, setIsFirstSession] = useState(true);
+  const sessionStartTimeRef = useRef<number>(0);
+
   const { userProfile } = useAuthContext();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
-  
+
   const { toast } = useToast();
 
   const language = userProfile?.language || 'en';
 
   const initializeAudioContext = useCallback(() => {
     if (window.AudioContext || window.webkitAudioContext) {
-        if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioContextRef.current.state === 'suspended') {
-            audioContextRef.current.resume();
-        }
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
     } else {
-        toast({ title: "Browser Not Supported", description: "Web Audio API is not available.", variant: "destructive" });
+      toast({ title: "Browser Not Supported", description: "Web Audio API is not available.", variant: "destructive" });
     }
   }, [toast]);
 
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
     if (!audioDataUri) {
       if (sessionShouldEnd) {
-        setSessionStarted(false);
-        setShowChat(false);
-        setSessionState(undefined);
-        setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+        await handleSessionEnd();
       }
       return;
     }
-    
+
     if (sourceNodeRef.current) {
-        try { sourceNodeRef.current.stop(); } catch(e) {}
+      try { sourceNodeRef.current.stop(); } catch (e) { }
     }
 
     if (!audioContextRef.current) {
-        toast({ title: "Audio Error", description: "Audio system not ready. Please tap a button to enable it.", variant: "destructive" });
-        return;
+      toast({ title: "Audio Error", description: "Audio system not ready. Please tap a button to enable it.", variant: "destructive" });
+      return;
     }
-    
+
     setIsSpeaking(true);
-    
+
     try {
-        const response = await fetch(audioDataUri);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
+      const response = await fetch(audioDataUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
 
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioContextRef.current.destination);
-        sourceNodeRef.current = source;
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContextRef.current.destination);
+      sourceNodeRef.current = source;
 
-        source.onended = () => {
-            if (sourceNodeRef.current === source) {
-                 setIsSpeaking(false);
-                 sourceNodeRef.current = null;
-                 if (sessionShouldEnd) {
-                    setSessionStarted(false);
-                    setShowChat(false);
-                    setSessionState(undefined);
-                    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
-                }
-            }
-        };
+      source.onended = () => {
+        if (sourceNodeRef.current === source) {
+          setIsSpeaking(false);
+          sourceNodeRef.current = null;
+          if (sessionShouldEnd) {
+            handleSessionEnd();
+          }
+        }
+      };
 
-        source.start(0);
+      source.start(0);
 
     } catch (e) {
-        console.error("Audio playback error:", e);
-        toast({ title: "Playback Error", description: "Could not play the voice.", variant: "destructive" });
-        setIsSpeaking(false);
+      console.error("Audio playback error:", e);
+      toast({ title: "Playback Error", description: "Could not play the voice.", variant: "destructive" });
+      setIsSpeaking(false);
     }
   }, [toast]);
-  
+
+  const handleSessionEnd = useCallback(async () => {
+    const { user } = useAuthContext.getSnapshot();
+
+    if (user && sessionState && sessionStartTimeRef.current) {
+      const duration = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000); // seconds
+      const summary = extractSessionSummary(sessionState);
+
+      try {
+        await saveSessionMemory(user.uid, {
+          ...summary,
+          duration,
+        });
+      } catch (error) {
+        console.error('Failed to save session memory:', error);
+      }
+    }
+
+    setSessionStarted(false);
+    setShowChat(false);
+    setSessionState(undefined);
+    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+    sessionStartTimeRef.current = 0;
+  }, [sessionState]);
+
   const handleTextOnlyResponse = useCallback(async (userInput: string) => {
     try {
-        const textResponse = await getTextResponse({ userInput, sessionState, language });
-        setSessionState(textResponse.updatedSessionState);
+      const textResponse = await getTextResponse({ userInput, sessionState, language });
+      setSessionState(textResponse.updatedSessionState);
 
-        const message = {
-            id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
-            speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
-            text: textResponse.responseText,
-            icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
-        };
-        setChatHistory(prev => [...prev, message]);
+      const message = {
+        id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
+        speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
+        text: textResponse.responseText,
+        icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
+      };
+      setChatHistory(prev => [...prev, message]);
 
-        if (textResponse.sessionShouldEnd) {
-            setSessionStarted(false);
-            setShowChat(false);
-            setSessionState(undefined);
-            setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
-        }
+      if (textResponse.sessionShouldEnd) {
+        await handleSessionEnd();
+      }
     } catch (fallbackError) {
-        console.error("Error during text-only fallback:", fallbackError);
-        toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
+      console.error("Error during text-only fallback:", fallbackError);
+      toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
     }
-  }, [sessionState, toast, language]);
+  }, [sessionState, toast, language, handleSessionEnd]);
 
-  const handleSendMessage = useCallback(async (userInput: string) => {
+  const handleSendMessage = useCallback(async (userInput: string, interrupted: boolean = false) => {
     const finalUserInput = userInput.trim();
     if (!finalUserInput || !sessionStarted) return;
 
     setIsSending(true);
     setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
-    
+
     if (isVoiceQuotaReached) {
-        await handleTextOnlyResponse(finalUserInput);
-        setIsSending(false);
-        return;
+      await handleTextOnlyResponse(finalUserInput);
+      setIsSending(false);
+      return;
     }
-    
+
     try {
-        const response = await getSpokenResponse({ userInput: finalUserInput, sessionState, language });
-        setSessionState(response.updatedSessionState);
-        
-        const message = {
-            id: `${response.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
-            speaker: response.isSafetyResponse ? "system" : "iSkylar",
-            text: response.responseText,
-            icon: response.isSafetyResponse ? AlertTriangle : Brain
-        };
-        setChatHistory(prev => [...prev, message]);
-        
-        await playAudio(response.audioDataUri, response.sessionShouldEnd);
+      const response = await getSpokenResponse({
+        userInput: finalUserInput,
+        sessionState,
+        language,
+        wasInterrupted: interrupted,
+        interruptedDuring: interrupted ? currentResponse : undefined
+      });
+      setSessionState(response.updatedSessionState);
+
+      const message = {
+        id: `${response.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
+        speaker: response.isSafetyResponse ? "system" : "iSkylar",
+        text: response.responseText,
+        icon: response.isSafetyResponse ? AlertTriangle : Brain
+      };
+      setChatHistory(prev => [...prev, message]);
+      setCurrentResponse(response.responseText); // Track current response
+      setWasInterrupted(false); // Reset interruption flag
+
+      await playAudio(response.audioDataUri, response.sessionShouldEnd);
 
     } catch (error: any) {
-        console.error("Error sending message:", error);
+      console.error("Error sending message:", error);
 
-        const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
+      const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
 
-        if (isQuotaError) {
-            console.warn("Voice quota reached. Switching to text-only responses.");
-            setIsVoiceQuotaReached(true);
-            toast({
-                title: "Voice Limit Reached",
-                description: "The daily limit for voice generation has been reached. Switching to text-only responses for now.",
-                variant: "destructive"
-            });
-            await handleTextOnlyResponse(finalUserInput);
-        } else {
-            toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
-        }
+      if (isQuotaError) {
+        console.warn("Voice quota reached. Switching to text-only responses.");
+        setIsVoiceQuotaReached(true);
+        toast({
+          title: "Voice Limit Reached",
+          description: "The daily limit for voice generation has been reached. Switching to text-only responses for now.",
+          variant: "destructive"
+        });
+        await handleTextOnlyResponse(finalUserInput);
+      } else {
+        toast({ title: "AI Error", description: "Could not get a response from iSkylar.", variant: "destructive" });
+      }
     } finally {
-        setIsSending(false);
+      setIsSending(false);
     }
-  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language]);
+  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language, currentResponse]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-        toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API.", variant: "destructive" });
-        return;
+      toast({ title: "Browser Not Supported", description: "Your browser does not support the Web Speech API.", variant: "destructive" });
+      return;
     }
 
     if (recognitionRef.current && isListening) {
@@ -201,32 +229,32 @@ export default function VoiceInterface() {
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    
+
     recognition.onerror = (event) => {
-        setIsListening(false);
-        if (event.error === 'no-speech' || event.error === 'aborted') { return; }
-        const errorMsg = event.error === 'not-allowed' || event.error === 'service-not-allowed'
-          ? "Microphone access denied."
-          : `Voice recognition error: ${event.error}`;
-        toast({ title: "Voice Error", description: errorMsg, variant: "destructive" });
-        if (errorMsg.includes("denied")) setSessionStarted(false);
+      setIsListening(false);
+      if (event.error === 'no-speech' || event.error === 'aborted') { return; }
+      const errorMsg = event.error === 'not-allowed' || event.error === 'service-not-allowed'
+        ? "Microphone access denied."
+        : `Voice recognition error: ${event.error}`;
+      toast({ title: "Voice Error", description: errorMsg, variant: "destructive" });
+      if (errorMsg.includes("denied")) setSessionStarted(false);
     };
 
     recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) handleSendMessage(transcript);
+      const transcript = event.results[0][0].transcript;
+      if (transcript) handleSendMessage(transcript);
     };
-    
+
     recognition.start();
   }, [toast, handleSendMessage, isListening, language]);
-  
+
   useEffect(() => {
     const shouldBeListening = sessionStarted && !isSpeaking && !isSending && !isInitializing && !isListening;
     if (shouldBeListening) {
       startListening();
     }
   }, [sessionStarted, isSpeaking, isSending, isListening, startListening, isInitializing]);
-  
+
   const handleStartSession = useCallback(async () => {
     initializeAudioContext();
 
@@ -234,65 +262,102 @@ export default function VoiceInterface() {
     setChatHistory([]);
     setShowChat(true);
     setSessionStarted(true);
-    try {
-        const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
-        setSessionState(response.updatedSessionState);
+    sessionStartTimeRef.current = Date.now(); // Track session start time
 
-        const greetingMessage = {
-            id: `iskylar-greeting-${Date.now()}`,
-            speaker: "iSkylar",
-            text: response.responseText,
-            icon: Brain
-        };
-        setChatHistory([greetingMessage]);
-        
-        await playAudio(response.audioDataUri, response.sessionShouldEnd);
+    try {
+      const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
+      setSessionState(response.updatedSessionState);
+
+      const greetingMessage = {
+        id: `iskylar-greeting-${Date.now()}`,
+        speaker: "iSkylar",
+        text: response.responseText,
+        icon: Brain
+      };
+      setChatHistory([greetingMessage]);
+
+      // Show first-session hint about interruption
+      if (isFirstSession) {
+        setTimeout(() => {
+          toast({
+            title: "💡 Pro Tip",
+            description: "You can interrupt me at any time while I'm speaking—just tap the orange button!",
+            duration: 5000,
+          });
+          setIsFirstSession(false);
+        }, 3000); // Show hint 3 seconds after greeting
+      }
+
+      await playAudio(response.audioDataUri, response.sessionShouldEnd);
     } catch (error) {
-        const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
-        if (isQuotaError) {
-            console.warn("Voice quota reached on session start. Switching to text-only mode.");
-            setIsVoiceQuotaReached(true);
-            toast({
-                title: "Voice Limit Reached",
-                description: "The daily limit for voice generation has been reached. Starting in text-only mode.",
-                variant: "destructive"
-            });
-            await handleTextOnlyResponse("ISKYLAR_SESSION_START");
-        } else {
-             console.error("Error during session initiation:", error);
-            toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
-            setSessionStarted(false);
-        }
+      const isQuotaError = error.message && (error.message.includes("429") || error.message.includes("quota"));
+      if (isQuotaError) {
+        console.warn("Voice quota reached on session start. Switching to text-only mode.");
+        setIsVoiceQuotaReached(true);
+        toast({
+          title: "Voice Limit Reached",
+          description: "The daily limit for voice generation has been reached. Starting in text-only mode.",
+          variant: "destructive"
+        });
+        await handleTextOnlyResponse("ISKYLAR_SESSION_START");
+      } else {
+        console.error("Error during session initiation:", error);
+        toast({ title: "AI Error", description: "Could not start session.", variant: "destructive" });
+        setSessionStarted(false);
+      }
     } finally {
-        setIsInitializing(false);
+      setIsInitializing(false);
     }
   }, [toast, playAudio, handleTextOnlyResponse, initializeAudioContext, language]);
-  
+
   const handleMicClick = useCallback(() => {
     initializeAudioContext();
-    
+
     if (isSpeaking && sourceNodeRef.current) {
-        try { sourceNodeRef.current.stop(); } catch(e) {}
+      try { sourceNodeRef.current.stop(); } catch (e) { }
     }
     if (!isListening) {
-        startListening();
+      startListening();
     }
   }, [isSpeaking, isListening, startListening, initializeAudioContext]);
-  
+
+  const handleInterrupt = useCallback(() => {
+    // Stop iSkylar from speaking
+    if (sourceNodeRef.current) {
+      try {
+        sourceNodeRef.current.stop();
+      } catch (e) { }
+    }
+    setIsSpeaking(false);
+    setWasInterrupted(true);
+
+    // Start listening for the user's interruption input
+    toast({
+      title: "You interrupted",
+      description: "Go ahead, I'm listening.",
+      duration: 2000,
+    });
+
+    // Automatically start listening
+    if (!isListening) {
+      startListening();
+    }
+  }, [startListening, isListening, toast]);
+
   useEffect(() => {
     if (chatHistoryRef.current) {
-        chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
+      chatHistoryRef.current.scrollTo({ top: chatHistoryRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [chatHistory]);
-  
+
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort();
       if (sourceNodeRef.current) {
-        try { sourceNodeRef.current.stop(); } catch(e) {}
+        try { sourceNodeRef.current.stop(); } catch (e) { }
       }
       if (audioContextRef.current) {
-          audioContextRef.current.close();
+        audioContextRef.current.close();
       }
     };
   }, []);
@@ -305,79 +370,188 @@ export default function VoiceInterface() {
     if (isListening) return "Listening...";
     return "Ready. Tap the microphone to speak.";
   }
-  
+
   return (
-    <div className="relative flex flex-col h-full w-full items-center justify-between font-body text-foreground overflow-hidden">
-     
-      <div className="relative z-10 flex flex-col w-full max-w-2xl mx-auto p-4 flex-grow justify-start">
-        <header className="w-full flex flex-col items-center text-center text-foreground pt-8">
-          <h1 className="text-4xl font-bold tracking-tight drop-shadow-lg">iSkylar</h1>
-          <p className="text-foreground/80 drop-shadow-md">Your AI Voice Therapist</p>
+    <div className="relative flex flex-col h-full min-h-screen w-full items-center justify-between overflow-hidden">
+
+      {/* Ambient light effects */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="relative z-10 flex flex-col w-full max-w-4xl mx-auto p-6 flex-grow justify-start">
+        <header className="w-full flex flex-col items-center text-center pt-12 pb-8">
+          {/* Logo/Avatar placeholder with breathing animation */}
+          <div className="mb-6 relative">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center shadow-2xl glow-purple breathe">
+              <Brain className="w-12 h-12 text-white" />
+            </div>
+            {/* Pulsing ring effect */}
+            <div className="absolute inset-0 rounded-full border-2 border-purple-400/50 animate-ping"></div>
+          </div>
+
+          <h1 className="text-6xl font-bold tracking-tight mb-3 gradient-text">
+            iSkylar
+          </h1>
+          <p className="text-lg text-white/80 font-medium tracking-wide">
+            Your AI Voice Therapist
+          </p>
+          <div className="mt-2 px-4 py-1.5 glass-dark rounded-full">
+            <p className="text-sm text-white/60">Empathetic • Intelligent • Always Here</p>
+          </div>
         </header>
       </div>
-      
-      <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-2xl mx-auto p-4 flex-shrink-0">
-        <footer className="w-full pt-4 flex flex-col items-center justify-center space-y-3 h-32">
-        {!sessionStarted ? (
-            <Button onClick={handleStartSession} disabled={isInitializing} size="lg" className="bg-primary text-primary-foreground backdrop-blur-md border border-primary/40 hover:bg-primary/90 h-14 text-lg">
-            {isInitializing && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            Start Session
-            </Button>
-        ) : (
-            <Button onClick={handleMicClick} variant="ghost" size="icon" className="rounded-full h-24 w-24 bg-primary/20 hover:bg-primary/30 backdrop-blur-md border-2 border-primary/50 shadow-2xl">
-            <Mic className={cn("size-12 text-foreground transition-all", isListening ? "scale-110 drop-shadow-lg text-primary" : "opacity-80")} />
-            </Button>
-        )}
-        <p className="text-sm text-foreground/80 h-5 text-center drop-shadow-md">{getStatusText()}</p>
+
+      {/* Main interaction area */}
+      <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-2xl mx-auto p-6 flex-shrink-0 mb-12">
+        <footer className="w-full flex flex-col items-center justify-center space-y-6">
+          {!sessionStarted ? (
+            <div className="flex flex-col items-center gap-4">
+              <Button
+                onClick={handleStartSession}
+                disabled={isInitializing}
+                size="lg"
+                className="relative group h-16 px-12 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white border-0 shadow-2xl glow-purple transition-all duration-300 hover:scale-105 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                {isInitializing && <Loader2 className="mr-3 h-6 w-6 animate-spin" />}
+                <span className="relative z-10">{isInitializing ? "Connecting..." : "Start Session"}</span>
+              </Button>
+              <p className="text-white/60 text-sm">Click to begin your therapeutic journey</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-5">
+              {/* Interrupt button with stunning design */}
+              {isSpeaking && (
+                <Button
+                  onClick={handleInterrupt}
+                  size="sm"
+                  className="relative px-6 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-semibold shadow-lg transition-all duration-300 animate-pulse border-0"
+                >
+                  <div className="absolute inset-0 bg-white/30 blur-xl animate-pulse"></div>
+                  <span className="relative z-10">⚡ Interrupt</span>
+                </Button>
+              )}
+
+              {/* Microphone button with premium design */}
+              <div className="relative">
+                {/* Outer glow ring */}
+                {(isListening || isSpeaking) && (
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 opacity-50 blur-2xl animate-pulse scale-150"></div>
+                )}
+
+                <Button
+                  onClick={handleMicClick}
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "relative h-32 w-32 rounded-full transition-all duration-500 border-4",
+                    isSpeaking
+                      ? "glass-dark border-purple-400/50 shadow-2xl glow-purple animate-pulse scale-110"
+                      : isListening
+                        ? "glass-dark border-blue-400/50 shadow-2xl glow-blue scale-110"
+                        : "glass-dark border-white/20 hover:border-white/40 hover:scale-110 hover:shadow-2xl"
+                  )}
+                >
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500/30 to-blue-500/30"></div>
+                  <Mic
+                    className={cn(
+                      "relative z-10 transition-all duration-300",
+                      isListening ? "w-16 h-16 text-blue-300 animate-pulse" :
+                        isSpeaking ? "w-16 h-16 text-purple-300" :
+                          "w-14 h-14 text-white/70 group-hover:text-white"
+                    )}
+                  />
+                </Button>
+              </div>
+
+              {/* Status text with modern styling */}
+              <div className="glass-dark px-6 py-3 rounded-full">
+                <p className="text-white font-medium text-center flex items-center gap-2">
+                  {isSending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {getStatusText()}
+                </p>
+              </div>
+            </div>
+          )}
         </footer>
       </div>
 
-       {sessionStarted && (
+      {/* Chat history overlay with glassmorphism */}
+      {sessionStarted && (
         <>
-            <Button variant="outline" size="icon" className="absolute top-4 left-4 z-20 bg-background/30 text-foreground backdrop-blur-md border-border/40 hover:bg-background/40" onClick={() => setShowChat(true)}>
-                <MessageSquare />
-            </Button>
-            <div className={cn(
-                "absolute inset-0 z-20 h-full w-full bg-black/50 backdrop-blur-md transition-opacity duration-300",
-                showChat ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}>
-                <div className="relative flex flex-col h-full max-w-2xl mx-auto p-4 pt-16">
-                     <Button variant="ghost" size="icon" className="absolute top-4 right-4 z-30 text-white hover:bg-white/20 hover:text-white" onClick={() => setShowChat(false)}>
-                        <X />
-                    </Button>
-                    <ScrollArea className="flex-grow mb-4 pr-4" ref={chatHistoryRef}>
-                    <div className="space-y-4">
-                      {chatHistory.map((msg) => (
-                        <Card
-                          key={msg.id}
-                          className={`w-fit max-w-[85%] rounded-xl shadow-md ${
-                            msg.speaker === "user" ? "ml-auto bg-primary/90 text-primary-foreground" :
-                            msg.speaker === "iSkylar" ? "bg-card/90 text-card-foreground" : 
-                            "bg-destructive/90 text-destructive-foreground mx-auto" 
-                          }`}
-                        >
-                          <CardContent className="p-3">
-                            <div className="flex items-start space-x-2">
-                              {msg.icon && <msg.icon className={`mt-1 size-5 shrink-0 ${
-                                msg.speaker === "user" ? "text-primary-foreground" :
-                                msg.speaker === "iSkylar" ? "text-primary" :
-                                "text-destructive"
-                              }`} />}
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                        {(isSending || (isInitializing && sessionStarted)) && (
-                        <div className="flex items-center space-x-2 p-4 bg-background/50 rounded-lg">
-                            <Loader2 className="size-5 shrink-0 text-primary animate-spin" />
-                            <p className="text-sm italic text-muted-foreground">{getStatusText()}</p>
+          <Button
+            variant="outline"
+            size="icon"
+            className="fixed top-6 left-6 z-30 glass-dark border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all"
+            onClick={() => setShowChat(true)}
+          >
+            <MessageSquare className="w-5 h-5" />
+          </Button>
+
+          <div
+            className={cn(
+              "fixed inset-0 z-40 transition-all duration-500",
+              showChat ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-xl"></div>
+
+            <div className="relative flex flex-col h-full max-w-3xl mx-auto p-6 pt-20">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-6 right-6 z-50 text-white hover:bg-white/10 hover:scale-110 transition-all"
+                onClick={() => setShowChat(false)}
+              >
+                <X className="w-6 h-6" />
+              </Button>
+
+              <ScrollArea className="flex-grow pr-4" ref={chatHistoryRef}>
+                <div className="space-y-4">
+                  {chatHistory.map((msg) => (
+                    <Card
+                      key={msg.id}
+                      className={cn(
+                        "w-fit max-w-[85%] rounded-2xl shadow-xl transition-all duration-300 hover:scale-[1.02] border-0",
+                        msg.speaker === "user"
+                          ? "ml-auto glass-dark"
+                          : msg.speaker === "iSkylar"
+                            ? "glass-dark"
+                            : "mx-auto glass-dark"
+                      )}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          {msg.icon && (
+                            <msg.icon
+                              className={cn(
+                                "mt-1 w-5 h-5 shrink-0",
+                                msg.speaker === "user" ? "text-blue-300" :
+                                  msg.speaker === "iSkylar" ? "text-purple-300" :
+                                    "text-orange-300"
+                              )}
+                            />
+                          )}
+                          <p className="text-sm leading-relaxed text-white/90 whitespace-pre-wrap">
+                            {msg.text}
+                          </p>
                         </div>
-                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {(isSending || (isInitializing && sessionStarted)) && (
+                    <div className="flex items-center space-x-3 p-4 glass-dark rounded-2xl w-fit">
+                      <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                      <p className="text-sm text-white/70 italic">{getStatusText()}</p>
                     </div>
-                  </ScrollArea>
+                  )}
                 </div>
+              </ScrollArea>
             </div>
+          </div>
         </>
       )}
     </div>
