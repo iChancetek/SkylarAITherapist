@@ -1,0 +1,57 @@
+[debug] [2026-01-26T06:28:46.796Z] ----------------------------------------------------------------------
+[debug] [2026-01-26T06:28:46.820Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\chanc\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apphosting:backends:create
+[debug] [2026-01-26T06:28:46.821Z] CLI Version:   15.4.0
+[debug] [2026-01-26T06:28:46.821Z] Platform:      win32
+[debug] [2026-01-26T06:28:46.822Z] Node Version:  v24.13.0
+[debug] [2026-01-26T06:28:46.823Z] Time:          Mon Jan 26 2026 01:28:46 GMT-0500 (Eastern Standard Time)
+[debug] [2026-01-26T06:28:46.823Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-26T06:28:47.038Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-26T06:28:47.039Z] > authorizing via signed-in user (isydneyai@gmail.com)
+[debug] [2026-01-26T06:28:47.043Z] Checked if tokens are valid: true, expires at: 1769410283265
+[debug] [2026-01-26T06:28:47.043Z] Checked if tokens are valid: true, expires at: 1769410283265
+[debug] [2026-01-26T06:28:47.045Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/skylar-ai-voice-therapy/services/firebaseapphosting.googleapis.com [none]
+[debug] [2026-01-26T06:28:47.045Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/skylar-ai-voice-therapy/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/skylar-ai-voice-therapy
+[debug] [2026-01-26T06:28:47.683Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/skylar-ai-voice-therapy/services/firebaseapphosting.googleapis.com 403
+[debug] [2026-01-26T06:28:47.683Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/skylar-ai-voice-therapy/services/firebaseapphosting.googleapis.com [omitted]
+[error] 
+[error] Error: Request to https://serviceusage.googleapis.com/v1/projects/skylar-ai-voice-therapy/services/firebaseapphosting.googleapis.com had HTTP Error: 403, Permission denied to get service [firebaseapphosting.googleapis.com]
+Help Token: AcxmRmICTNLGCo4nK49xj95hAUXRBSahpf5vANGY7ORxZiClqzWxfedVfFe-YbMdciowE4VibOqVN7bR6JBzbrEwqg9Co556M4JJMsovlxEKd2aX
+[debug] [2026-01-26T06:28:47.756Z] Error Context: {
+  "body": {
+    "error": {
+      "code": 403,
+      "message": "Permission denied to get service [firebaseapphosting.googleapis.com]\nHelp Token: AcxmRmICTNLGCo4nK49xj95hAUXRBSahpf5vANGY7ORxZiClqzWxfedVfFe-YbMdciowE4VibOqVN7bR6JBzbrEwqg9Co556M4JJMsovlxEKd2aX",
+      "status": "PERMISSION_DENIED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+          "violations": [
+            {
+              "type": "googleapis.com",
+              "subject": "110002"
+            }
+          ]
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "AUTH_PERMISSION_DENIED",
+          "domain": "serviceusage.googleapis.com"
+        }
+      ]
+    }
+  },
+  "response": {
+    "statusCode": 403
+  }
+}
+[debug] [2026-01-26T06:28:48.017Z] Error: EBUSY: resource busy or locked, unlink 'D:\chancellor\iSkylar\SkylarAITherapist\firebase-debug.log'
+    at Object.unlinkSync (node:fs:1945:11)
+    at process.<anonymous> (C:\Users\chanc\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\cli.js:44:16)
+    at process.emit (node:events:508:28)
+    at process.exit (node:internal/process/per_thread:236:15)
+    at Timeout._onTimeout (C:\Users\chanc\AppData\Roaming\npm\node_modules\firebase-tools\lib\errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[error] 
+[error] Error: An unexpected error has occurred.

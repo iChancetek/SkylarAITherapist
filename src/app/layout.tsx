@@ -1,10 +1,10 @@
-
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/lib/auth';
 import { PT_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import InstallPWA from '@/components/install-pwa';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -12,17 +12,18 @@ const ptSans = PT_Sans({
   variable: '--font-pt-sans',
 });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#8b5cf6',
+};
+
 export const metadata: Metadata = {
   title: 'iSkylar: AI Voice Therapy',
   description: 'Your AI voice therapist - empathetic, intelligent, always here for you',
   manifest: '/manifest.json',
-  themeColor: '#8b5cf6',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -50,6 +51,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <Toaster />
+            <InstallPWA />
           </AuthProvider>
         </ThemeProvider>
       </body>
