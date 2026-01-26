@@ -323,8 +323,21 @@ export default function VoiceInterface() {
     setSessionStarted(true);
     sessionStartTimeRef.current = Date.now(); // Track session start time
 
+    const startSessionWithRetry = async (attempts = 1): Promise<any> => {
+      try {
+        return await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
+      } catch (error) {
+        if (attempts > 0) {
+          console.warn("Session start failed, retrying in 1.5s (Cold Start Protection)...");
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          return startSessionWithRetry(attempts - 1);
+        }
+        throw error;
+      }
+    };
+
     try {
-      const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
+      const response = await startSessionWithRetry();
       setSessionState(response.updatedSessionState);
 
       const greetingMessage: ChatMessage = {

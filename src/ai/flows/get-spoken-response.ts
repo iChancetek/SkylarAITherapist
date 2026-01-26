@@ -9,6 +9,7 @@ import { safetyNetActivation } from './safety-net';
 import type { SpokenResponseInput, SpokenResponseOutput } from '@/ai/schema/spoken-response';
 
 export async function getSpokenResponse(input: SpokenResponseInput): Promise<SpokenResponseOutput> {
+  console.log("OPENAI KEY LOADED:", !!process.env.OPENAI_API_KEY);
   const lang = input.language || 'en';
 
   try {
