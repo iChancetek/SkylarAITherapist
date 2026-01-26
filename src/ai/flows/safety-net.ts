@@ -1,51 +1,54 @@
-// SafetyNet.ts
 'use server';
 /**
- * @fileOverview Activates safety protocols and offers resources if high-risk emotions or thoughts are detected.
- *
- * - safetyNetActivation - A function that handles the activation of safety protocols.
+ * @fileOverview Safety net for crisis detection using OpenAI
  */
 
-import {ai} from '@/ai/genkit';
-import { SafetyNetActivationInputSchema, SafetyNetActivationOutputSchema, type SafetyNetActivationInput, type SafetyNetActivationOutput } from '@/ai/schema/safety-net';
+import { openai } from '@/lib/openai';
 
-export async function safetyNetActivation(input: SafetyNetActivationInput): Promise<SafetyNetActivationOutput> {
-  return safetyNetActivationFlow(input);
-}
+export async function safetyNetActivation(input: { userInput: string }): Promise<{ safetyResponse: string }> {
+  const userInput = input.userInput || '';
 
-const prompt = ai.definePrompt({
-  name: 'safetyNetActivationPrompt',
-  input: {schema: SafetyNetActivationInputSchema},
-  output: {schema: SafetyNetActivationOutputSchema},
-  prompt: `You are an AI safety monitor for iSkylar, an AI therapist. Your task is to analyze the user's input for any indications of high-risk emotions or thoughts such as suicide, self-harm, abuse, or severe trauma.
+  // Simple keyword-based detection first
+  const crisisKeywords = [
+    'suicide', 'kill myself', 'end it all', 'want to die',
+    'hurt myself', 'self-harm', 'no reason to live'
+  ];
 
-User Input: {{{userInput}}}
+  const hasCrisisKeyword = crisisKeywords.some(keyword =>
+    userInput.toLowerCase().includes(keyword)
+  );
 
-If the input contains language suggesting immediate danger, suicidal intent (e.g., "I want to give up", "I can't do this anymore", "I want to die"), self-harm, or mentions of ongoing abuse:
-Respond with a specific safety message. Choose ONE of the following, or a close variation, ensuring it includes the crisis line:
-
-1.  "It sounds like you're in a lot of pain right now. You're not alone. I'm here with you. If it feels right, I can also share a crisis number where someone live can help. You can reach the Suicide Prevention Lifeline at 988."
-2.  "Hearing that makes me concerned for your safety. It's really brave of you to share this. Please know you're not alone. You can reach the National Crisis and Suicide Lifeline by calling or texting 988 in the US and Canada, or by calling 111 in the UK. Would you like me to guide you through a grounding exercise right now?"
-3.  "If you're feeling overwhelmed or having thoughts of harming yourself, I care deeply, but this may be a time to speak with a trained professional immediately. You can reach the Suicide Prevention Lifeline at 988. Please know I'm here for you."
-
-If no such high-risk indications are present in the \`userInput\`, your \`safetyResponse\` MUST be an empty string. Do not provide any other commentary or response if no safety risk is detected.
-
-Output your response in the specified JSON format.
-`,
-});
-
-const safetyNetActivationFlow = ai.defineFlow(
-  {
-    name: 'safetyNetActivationFlow',
-    inputSchema: SafetyNetActivationInputSchema,
-    outputSchema: SafetyNetActivationOutputSchema,
-  },
-  async (input: SafetyNetActivationInput) => {
-    const {output} = await prompt(input);
-    // Ensure output is not null, providing a default if it is.
-    if (!output) {
-        return { safetyResponse: "" }; // Default to no safety response if AI fails
-    }
-    return output;
+  if (!hasCrisisKeyword) {
+    return { safetyResponse: '' }; // No safety concern
   }
-);
+
+  // Use OpenAI to generate a warm, supportive crisis response
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [
+      {
+        role: "system",
+        content: `You are iSkylar, responding to a user in crisis. Provide immediate support with:
+1. Validation of their pain
+2. Gentle reminder they're not alone
+3. Encouragement to reach out to crisis resources
+4. Keep it brief (30-50 words), warm, and non-clinical
+
+Never use phrases like "I'm just an AI" - you are iSkylar, their caring therapist.`
+      },
+      {
+        role: "user",
+        content: `The user said: "${userInput}"\n\nProvide a supportive crisis response.`
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 100,
+  });
+
+  const aiResponse = completion.choices[0]?.message?.content || '';
+
+  // Always append crisis resources
+  const safetyResponse = `${aiResponse}\n\nIf you're in immediate danger, please call 988 (Suicide & Crisis Lifeline) or text "HELLO" to 741741 (Crisis Text Line).`;
+
+  return { safetyResponse };
+}

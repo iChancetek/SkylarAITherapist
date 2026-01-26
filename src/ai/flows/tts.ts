@@ -1,85 +1,30 @@
-
 'use server';
 /**
- * @fileOverview A text-to-speech (TTS) flow for iSkylar.
- *
- * - textToSpeech - A function that converts text into speech audio.
+ * @fileOverview OpenAI Text-to-Speech conversion
  */
-import {ai} from '@/ai/genkit';
-import {googleAI} from '@genkit-ai/googleai';
-import wav from 'wav';
-import { TextToSpeechOutputSchema, type TextToSpeechOutput } from '@/ai/schema/tts';
 
-// Map language codes to specific voices. This can be expanded.
-const languageToVoice: Record<string, string> = {
-    'en': 'vindemiatrix', // English
-    'es': 'zubenelgenubi',      // Spanish
-    'zh': 'gacrux',       // Mandarin
-    'sw': 'algenib',      // Swahili
-    'hi': 'achernar',     // Hindi
-    'he': 'algieba',      // Hebrew
-};
+import { openai } from '@/lib/openai';
 
-export async function textToSpeech(text: string, language: string = 'en'): Promise<TextToSpeechOutput> {
-  // If the input text is empty or just whitespace, don't call the TTS service.
-  if (!text || !text.trim()) {
-    return { audioDataUri: '' };
+export async function textToSpeech(text: string, language: string = 'en'): Promise<{ audioDataUri: string }> {
+  try {
+    // Use OpenAI TTS API
+    const mp3 = await openai.audio.speech.create({
+      model: "tts-1", // or "tts-1-hd" for higher quality
+      voice: "nova", // warm, empathetic female voice
+      input: text,
+      speed: 0.95, // Slightly slower for therapeutic calmness
+    });
+
+    // Convert to buffer
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+
+    // Convert to base64 data URI
+    const base64Audio = buffer.toString('base64');
+    const audioDataUri = `data:audio/mp3;base64,${base64Audio}`;
+
+    return { audioDataUri };
+  } catch (error) {
+    console.error('OpenAI TTS error:', error);
+    throw new Error('Failed to generate speech');
   }
-  
-  const voiceName = languageToVoice[language] || 'vindemiatrix'; // Fallback to English voice
-
-  const {media} = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash-preview-tts'),
-    config: {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName },
-        },
-      },
-    },
-    prompt: text,
-  });
-
-  if (!media) {
-    throw new Error('No audio media was returned from the TTS service.');
-  }
-
-  const audioBuffer = Buffer.from(
-    media.url.substring(media.url.indexOf(',') + 1),
-    'base64'
-  );
-
-  const wavData = await toWav(audioBuffer);
-
-  return {
-    audioDataUri: 'data:audio/wav;base64,' + wavData,
-  };
-}
-
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    const bufs: Buffer[] = [];
-    writer.on('error', reject);
-    writer.on('data', (chunk: Buffer) => {
-      bufs.push(chunk);
-    });
-    writer.on('end', () => {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
 }

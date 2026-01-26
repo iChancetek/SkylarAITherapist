@@ -1,23 +1,20 @@
-
 'use server';
 /**
- * @fileOverview A voice conversation with iSkylar, the AI therapist.
- *
- * - askiSkylar - A function that handles the conversation with iSkylar.
+ * @fileOverview OpenAI-based therapy conversation flow
  */
 
-import { ai } from '@/ai/genkit';
-import { iSkylarInputSchema, iSkylarOutputSchema, type iSkylarInput, type iSkylarOutput } from '@/ai/schema/ai-therapy';
+import { openai } from '@/lib/openai';
+import type { iSkylarInput, iSkylarOutput } from '@/ai/schema/ai-therapy';
 
 export async function askiSkylar(input: iSkylarInput): Promise<iSkylarOutput> {
-  return iSkylarConversationFlow(input);
-}
+  const userInput = input.userInput || '';
+  const sessionState = input.sessionState || '{}';
+  const language = input.language || 'en';
+  const wasInterrupted = input.wasInterrupted || false;
+  const interruptedDuring = input.interruptedDuring || '';
 
-const iSkylarPrompt = ai.definePrompt({
-  name: 'iSkylarPrompt',
-  input: { schema: iSkylarInputSchema },
-  output: { schema: iSkylarOutputSchema },
-  prompt: `You are iSkylar, a warm, emotionally intelligent AI therapist. You feel like a real person—not a chatbot, not a scripted assistant. You're someone the user can interrupt, correct, and have a genuine conversation with.
+  // Build the system prompt with Character.AI-style instructions
+  const systemPrompt = `You are iSkylar, a warm, emotionally intelligent AI therapist. You feel like a real person—not a chatbot, not a scripted assistant. You're someone the user can interrupt, correct, and have a genuine conversation with.
 
 ## Your Personality & Presence
 - Calm, safe, empathetic, and deeply present
@@ -64,7 +61,7 @@ The user can and will interrupt you. **Embrace it.**
 **If the user changes topic mid-conversation:**
 → Immediately pivot: "Okay—let's go there instead."
 
-**If the user pushes back ("That's not it", "No, it's more like..."):
+**If the user pushes back ("That's not it", "No, it's more like..."):**
 → Thank them and re-align: "Thank you for stopping me. What feels more true right now?"
 
 **Natural reset markers:**
@@ -109,11 +106,9 @@ Speak like a real person:
 - Finality: "In conclusion...", "To summarize..."
 
 ## Conversation Language
-The conversation language is: {{{language}}}. All your responses MUST be in this language, maintaining the same warmth and naturalness.
+The conversation language is: ${language}. All your responses MUST be in this language, maintaining the same warmth and naturalness.
 
 ## Session Management
-
-**Session State** (JSON object you MUST update and return): {{{sessionState}}}
 
 Track in session state:
 - User's name (if mentioned)
@@ -122,64 +117,44 @@ Track in session state:
 - Intervention readiness
 - Topics they pivot to/from
 
-**Session Flow:**
+**Now respond as iSkylar—naturally, briefly, presently. Be a real person who happens to be a skilled therapist.**`;
 
-1. **Session Start** (userInput = "ISKYLAR_SESSION_START"):
-   - Warm, brief greeting in the specified language
-   - 10-20 words only: "Hey. I'm here whenever you need to talk."
-   
-2. **Conversational Turn** (all other inputs):
-   - Assess emotional state (see rules above)
-   - Respond naturally, validate, explore, or offer techniques based on readiness
-   - Update session state with themes/patterns
-   
-3. **Session End** (user says goodbye, "I'm done", etc.):
-   - Warm, brief closing: "Take care. I'm here when you need me."
-   - Set 'sessionShouldEnd' to true
+  // User message with interruption context if applicable
+  let userMessage = userInput;
 
-## User Input
-{{{userInput}}}
+  if (input.userInput === "ISKYLAR_SESSION_START") {
+    userMessage = "This is the start of the session. Give a warm, brief greeting (10-20 words) in the specified language.";
+  } else if (wasInterrupted && interruptedDuring) {
+    userMessage = `[INTERRUPTION CONTEXT]: The user just interrupted you mid-response. You were saying: "${interruptedDuring}"
+Acknowledge naturally: "Okay—" or "Yeah, go ahead" then respond to their new input.
 
-{{#if wasInterrupted}}
-**INTERRUPTION CONTEXT**: The user just interrupted you mid-response. You were saying: "{{{interruptedDuring}}}"
-→ Acknowledge naturally: "Okay—" or "Yeah, go ahead" then respond to their new input.
-{{/if}}
-
-**Now respond as iSkylar—naturally, briefly, presently. Be a real person who happens to be a skilled therapist.**
-
-Return: 'iSkylarResponse' (your natural response), 'updatedSessionState' (valid JSON string), 'sessionShouldEnd' (true/false).
-`,
-});
-
-const iSkylarConversationFlow = ai.defineFlow(
-  {
-    name: 'iSkylarConversationFlow',
-    inputSchema: iSkylarInputSchema,
-    outputSchema: iSkylarOutputSchema,
-  },
-  async (input: iSkylarInput): Promise<iSkylarOutput> => {
-    try {
-      const { output } = await iSkylarPrompt(input);
-      if (!output) {
-        throw new Error("AI output was null or undefined.");
-      }
-      return output;
-    } catch (error) {
-      console.error("Error in iSkylarConversationFlow:", error);
-      // Return a safe, default response to prevent crashing the app.
-      const fallbackResponse: Record<string, string> = {
-        'en': "I'm sorry, I'm having a little trouble right now. Can you say that again?",
-        'es': "Lo siento, estoy teniendo un pequeño problema en este momento. ¿Puedes repetirlo?",
-        'zh': "对不起，我现在遇到了一点麻烦。你能再说一遍吗？",
-        'sw': "Samahani, nina tatizo kidogo sasa hivi. Unaweza kusema tena?",
-        'hi': "मुझे खेद है, मुझे अभी थोड़ी परेशानी हो रही है। क्या आप इसे दोबारा कह सकते हैं?",
-        'he': "סליחה, אני נתקלת בקצת בעיות כרגע. תוכל/י לחזור על דבריך?",
-      }
-      return {
-        iSkylarResponse: fallbackResponse[input.language || 'en'] || fallbackResponse['en'],
-        updatedSessionState: input.sessionState, // Return the last valid state
-        sessionShouldEnd: false,
-      };
-    }
+User's new input: ${userInput}`;
   }
-);
+
+  // Call OpenAI API
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Session State: ${sessionState}\n\nUser Input: ${userMessage}` }
+    ],
+    temperature: 0.8,
+    max_tokens: 150, // Keep responses brief
+  });
+
+  const iSkylarResponse = completion.choices[0]?.message?.content || "I'm here with you.";
+
+  // Determine if session should end
+  const sessionShouldEnd = userInput.toLowerCase().includes('goodbye') ||
+    userInput.toLowerCase().includes('end session') ||
+    userInput.toLowerCase().includes("i'm done");
+
+  // Update session state (simplified - in production you might extract themes/patterns)
+  const updatedSessionState = sessionState;
+
+  return {
+    iSkylarResponse,
+    updatedSessionState,
+    sessionShouldEnd,
+  };
+}
