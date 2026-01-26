@@ -1,0 +1,36 @@
+{
+    "name": "iSkylar - AI Voice Therapist",
+    "short_name": "iSkylar",
+    "description": "Your AI voice therapist - empathetic, intelligent, always here for you",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f0c29",
+    "theme_color": "#8b5cf6",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "health",
+        "medical",
+        "lifestyle"
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshot-1.png",
+            "sizes": "1080x1920",
+            "type": "image/png"
+        }
+    ]
+}

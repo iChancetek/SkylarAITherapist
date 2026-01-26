@@ -5,6 +5,8 @@ import { useAuthContext } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import ServiceWorkerRegister from '@/components/sw-register';
+import InstallPWA from '@/components/install-pwa';
 
 export default function HomePage() {
   const { user, loading } = useAuthContext();
@@ -19,10 +21,14 @@ export default function HomePage() {
       }
     }
   }, [user, loading, router]);
-  
+
   return (
-    <div className="flex h-screen w-full items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin" />
-    </div>
+    <>
+      <ServiceWorkerRegister />
+      <InstallPWA />
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    </>
   );
 }

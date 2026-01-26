@@ -14,7 +14,23 @@ const ptSans = PT_Sans({
 
 export const metadata: Metadata = {
   title: 'iSkylar: AI Voice Therapy',
-  description: 'Real-Time Generative AI Voice Therapist',
+  description: 'Your AI voice therapist - empathetic, intelligent, always here for you',
+  manifest: '/manifest.json',
+  themeColor: '#8b5cf6',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'iSkylar',
+  },
+  applicationName: 'iSkylar',
+  authors: [{ name: 'iSkylar Team' }],
+  keywords: ['therapy', 'AI', 'mental health', 'voice', 'counseling', 'support'],
 };
 
 export default function RootLayout({
