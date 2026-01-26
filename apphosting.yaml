@@ -3,10 +3,6 @@
 
 runConfig:
   maxInstances: 1
-
-# Note: OPENAI_API_KEY secret is managed via Firebase Console to avoid build-time IAM issues.
-env:
-  - variable: OPENAI_API_KEY
-    secret: OPENAI_API_KEY
-    availability:
-      - RUNTIME
+# Secrets are now managed at runtime via Google Cloud Secret Manager SDK
+# to bypass build-time IAM permission issues.
+# See src/lib/secrets.ts
