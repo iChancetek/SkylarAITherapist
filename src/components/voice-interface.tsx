@@ -1,5 +1,4 @@
 
-// @ts-nocheck
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -13,6 +12,49 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/auth";
 import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
+
+// --- Type Definitions for Web Speech API & Legacy Audio Context ---
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognition extends EventTarget {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onstart: (event: Event) => void;
+  onend: (event: Event) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+}
+
+interface SpeechRecognitionConstructor {
+  new(): SpeechRecognition;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 
 interface ChatMessage {
   id: string;
@@ -36,7 +78,7 @@ export default function VoiceInterface() {
   const [isFirstSession, setIsFirstSession] = useState(true);
   const sessionStartTimeRef = useRef<number>(0);
 
-  const { userProfile } = useAuthContext();
+  const { user, userProfile } = useAuthContext();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
@@ -45,7 +87,6 @@ export default function VoiceInterface() {
   const { toast } = useToast();
 
   const language = userProfile?.language || 'en';
-
   const initializeAudioContext = useCallback(() => {
     if (window.AudioContext || window.webkitAudioContext) {
       if (!audioContextRef.current) {
@@ -58,6 +99,28 @@ export default function VoiceInterface() {
       toast({ title: "Browser Not Supported", description: "Web Audio API is not available.", variant: "destructive" });
     }
   }, [toast]);
+
+  const handleSessionEnd = useCallback(async () => {
+    if (user && sessionState && sessionStartTimeRef.current) {
+      const duration = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000); // seconds
+      const summary = extractSessionSummary(sessionState);
+
+      try {
+        await saveSessionMemory(user.uid, {
+          ...summary,
+          duration,
+        });
+      } catch (error) {
+        console.error('Failed to save session memory:', error);
+      }
+    }
+
+    setSessionStarted(false);
+    setShowChat(false);
+    setSessionState(undefined);
+    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
+    sessionStartTimeRef.current = 0;
+  }, [sessionState, user]);
 
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
     if (!audioDataUri) {
@@ -105,38 +168,14 @@ export default function VoiceInterface() {
       toast({ title: "Playback Error", description: "Could not play the voice.", variant: "destructive" });
       setIsSpeaking(false);
     }
-  }, [toast]);
-
-  const handleSessionEnd = useCallback(async () => {
-    const { user } = useAuthContext.getSnapshot();
-
-    if (user && sessionState && sessionStartTimeRef.current) {
-      const duration = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000); // seconds
-      const summary = extractSessionSummary(sessionState);
-
-      try {
-        await saveSessionMemory(user.uid, {
-          ...summary,
-          duration,
-        });
-      } catch (error) {
-        console.error('Failed to save session memory:', error);
-      }
-    }
-
-    setSessionStarted(false);
-    setShowChat(false);
-    setSessionState(undefined);
-    setChatHistory(prev => [...prev, { id: 'system-end', speaker: 'system', text: 'Session ended.', icon: Brain }]);
-    sessionStartTimeRef.current = 0;
-  }, [sessionState]);
+  }, [toast, handleSessionEnd]);
 
   const handleTextOnlyResponse = useCallback(async (userInput: string) => {
     try {
       const textResponse = await getTextResponse({ userInput, sessionState, language });
       setSessionState(textResponse.updatedSessionState);
 
-      const message = {
+      const message: ChatMessage = {
         id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
         speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
         text: textResponse.responseText,
@@ -176,7 +215,7 @@ export default function VoiceInterface() {
       });
       setSessionState(response.updatedSessionState);
 
-      const message = {
+      const message: ChatMessage = {
         id: `${response.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
         speaker: response.isSafetyResponse ? "system" : "iSkylar",
         text: response.responseText,
@@ -268,7 +307,7 @@ export default function VoiceInterface() {
       const response = await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
       setSessionState(response.updatedSessionState);
 
-      const greetingMessage = {
+      const greetingMessage: ChatMessage = {
         id: `iskylar-greeting-${Date.now()}`,
         speaker: "iSkylar",
         text: response.responseText,

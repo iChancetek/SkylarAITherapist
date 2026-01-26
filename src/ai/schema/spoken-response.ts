@@ -1,13 +1,8 @@
 
 import { z } from 'genkit';
+import { iSkylarInputSchema } from './ai-therapy';
 
-export const SpokenResponseInputSchema = z.object({
-  userInput: z.string().describe('The user input from voice or text. Can be "ISKYLAR_SESSION_START" to initiate the session.'),
-  sessionState: z.string().optional().describe('A JSON string representing the session state.'),
-  language: z.string().optional().default('en').describe('The language for the conversation (e.g., "en", "es").'),
-  wasInterrupted: z.boolean().optional().describe('True if the user interrupted iSkylar mid-response.'),
-  interruptedDuring: z.string().optional().describe('What iSkylar was saying when interrupted, for context.'),
-});
+export const SpokenResponseInputSchema = iSkylarInputSchema;
 export type SpokenResponseInput = z.infer<typeof SpokenResponseInputSchema>;
 
 export const SpokenResponseOutputSchema = z.object({

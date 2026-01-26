@@ -9,6 +9,15 @@ export default function InstallPWA() {
     const [showInstall, setShowInstall] = useState(false);
 
     useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker
+                .register('/sw.js')
+                .then((registration) => console.log('Scope: ', registration.scope))
+                .catch((err) => console.log('SW Registration Failed: ', err));
+        }
+    }, []);
+
+    useEffect(() => {
         const handler = (e: Event) => {
             e.preventDefault();
             setDeferredPrompt(e);

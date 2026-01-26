@@ -3,6 +3,8 @@
     "short_name": "iSkylar",
     "description": "Your AI voice therapist - empathetic, intelligent, always here for you",
     "start_url": "/",
+    "scope": "/",
+    "id": "/",
     "display": "standalone",
     "background_color": "#0f0c29",
     "theme_color": "#8b5cf6",
