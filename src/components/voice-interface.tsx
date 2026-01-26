@@ -431,7 +431,7 @@ export default function VoiceInterface() {
   }
 
   return (
-    <div className="relative flex flex-col h-full min-h-screen w-full items-center justify-between overflow-hidden">
+    <div className="relative flex flex-col h-full min-h-screen w-full items-center justify-between overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
 
       {/* Ambient light effects */}
       <div className="fixed inset-0 pointer-events-none">

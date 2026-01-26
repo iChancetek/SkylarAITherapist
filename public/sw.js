@@ -8,12 +8,18 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-    self.skipWaiting();
+    // Note: We do NOT call skipWaiting() here immediately to allow the user to control the update.
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(STATIC_ASSETS);
         })
     );
+});
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 self.addEventListener('activate', (event) => {
