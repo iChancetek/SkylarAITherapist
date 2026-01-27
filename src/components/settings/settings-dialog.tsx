@@ -37,7 +37,10 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
                 {/* Close / Save Bar (Mobile/Desktop friendly) */}
                 <div className="absolute top-4 right-4 z-50">
                     <Button
-                        onClick={() => setOpen(false)}
+                        onClick={async () => {
+                            await useUserPreferences().savePreferences();
+                            setOpen(false);
+                        }}
                         className="rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/5 backdrop-blur-md"
                     >
                         <Check className="w-4 h-4 mr-2" />

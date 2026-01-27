@@ -24,12 +24,12 @@ import { useToast } from "@/hooks/use-toast";
 import React from "react";
 
 const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'zh', name: 'Mandarin' },
-    { code: 'sw', name: 'Swahili' },
-    { code: 'hi', name: 'Hindi' },
-    { code: 'he', name: 'Hebrew' },
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'zh', name: 'Mandarin' },
+  { code: 'sw', name: 'Swahili' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'he', name: 'Hebrew' },
 ];
 
 export function UserMenu() {
@@ -44,24 +44,24 @@ export function UserMenu() {
     if (!name) return "U";
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
-  
+
   const onPasswordChangeClick = () => {
     if (user?.email) {
       handlePasswordReset(user.email);
     } else {
-       toast({
+      toast({
         title: "Error",
         description: "Could not find your email address to send a reset link.",
         variant: "destructive"
-       });
+      });
     }
   }
 
   const handleLanguageChange = async (langCode: string) => {
     await updateUserProfile({ language: langCode });
     toast({
-        title: "Language Updated",
-        description: `Your language has been set to ${languages.find(l => l.code === langCode)?.name}.`,
+      title: "Language Updated",
+      description: `Your language has been set to ${languages.find(l => l.code === langCode)?.name}.`,
     });
   }
 
@@ -69,7 +69,7 @@ export function UserMenu() {
   const avatarUrl = userProfile?.profileImage || user.photoURL;
 
   return (
-    <div className="absolute top-4 right-4">
+    <div className="">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-3 rounded-full bg-background/20 p-2 pr-4 text-foreground backdrop-blur-sm transition-colors hover:bg-background/30">
@@ -94,7 +94,7 @@ export function UserMenu() {
               onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
             />
           </DropdownMenuItem>
-           <DropdownMenuSub>
+          <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Languages className="mr-2 h-4 w-4" />
               <span>Language</span>
@@ -102,9 +102,9 @@ export function UserMenu() {
             <DropdownMenuSubContent>
               <DropdownMenuRadioGroup value={userProfile?.language || 'en'} onValueChange={handleLanguageChange}>
                 {languages.map(lang => (
-                    <DropdownMenuRadioItem key={lang.code} value={lang.code}>
-                        {lang.name}
-                    </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>

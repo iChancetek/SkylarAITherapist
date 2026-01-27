@@ -17,6 +17,7 @@ import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 // import { AgentSelector } from "@/components/agent-selector"; // Removed old selector
 import { AgentSidebar } from "@/components/agent-sidebar";
+import { UserMenu } from "@/components/user-menu";
 import { AgentId, AGENTS } from "@/ai/personas";
 
 // --- Type Definitions for Web Speech API & Legacy Audio Context ---
@@ -491,8 +492,25 @@ export default function VoiceInterface() {
   return (
     <div className="relative flex flex-col h-full min-h-screen w-full items-center justify-between overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
 
-      {/* Settings Entry Point - Top Right */}
-      {/* Settings Entry Point - Moved to Header */}
+      {/* Settings Entry Point & User Menu - Top Right */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <SettingsDialog onResumeSession={(session) => {
+          const resumedHistory: ChatMessage[] = session.transcript.map((t: any, i: number) => ({
+            id: `resumed-${i}-${t.timestamp}`,
+            speaker: t.speaker === 'system' ? 'system' : t.speaker === 'user' ? 'user' : 'iSkylar',
+            text: t.text,
+            icon: t.speaker === 'user' ? User : Brain
+          }));
+          setChatHistory(resumedHistory);
+          setSessionStarted(true);
+          toast({ title: "Session Resumed", description: "Context loaded from history." });
+        }}>
+          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10 transition-all rounded-full w-10 h-10">
+            <Settings className="w-5 h-5" />
+          </Button>
+        </SettingsDialog>
+        <UserMenu />
+      </div>
 
       {/* Ambient light effects (Unchanged) */}
       <div className="fixed inset-0 pointer-events-none">
@@ -520,21 +538,6 @@ export default function VoiceInterface() {
           </div>
 
           <div className="flex items-center gap-3 mb-3">
-            <SettingsDialog onResumeSession={(session) => {
-              const resumedHistory: ChatMessage[] = session.transcript.map((t: any, i: number) => ({
-                id: `resumed-${i}-${t.timestamp}`,
-                speaker: t.speaker === 'system' ? 'system' : t.speaker === 'user' ? 'user' : 'iSkylar',
-                text: t.text,
-                icon: t.speaker === 'user' ? User : Brain
-              }));
-              setChatHistory(resumedHistory);
-              setSessionStarted(true);
-              toast({ title: "Session Resumed", description: "Context loaded from history." });
-            }}>
-              <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10 transition-all rounded-full w-10 h-10 mt-1">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </SettingsDialog>
             <h1 className="text-6xl font-bold tracking-tight gradient-text">iSkylar</h1>
           </div>
           <p className="text-lg text-white/80 font-medium tracking-wide">Your AI Voice Therapist</p>

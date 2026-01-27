@@ -39,10 +39,10 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
 
             {/* The Sidebar Content */}
             <div className={cn(
-                "h-auto max-h-[80vh] bg-black/60 backdrop-blur-2xl border-r border-y border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] rounded-r-3xl overflow-hidden transition-all duration-500 transform origin-left",
+                "h-screen bg-background/90 backdrop-blur-2xl border-r border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 transform origin-left",
                 isHovered ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
             )}>
-                <div className="p-6 flex flex-col space-y-6">
+                <div className="h-full overflow-y-auto p-6 flex flex-col space-y-6">
                     <div className="text-center border-b border-white/10 pb-4">
                         <h3 className="text-lg font-bold text-white tracking-wide">Select Agent</h3>
                         <p className="text-xs text-white/40">Choose your companion</p>

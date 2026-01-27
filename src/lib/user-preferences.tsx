@@ -51,6 +51,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 interface UserPreferencesContextType {
     preferences: UserPreferences;
     updatePreferences: (updates: Partial<UserPreferences>) => void;
+    savePreferences: () => Promise<void>;
     incrementUsage: (minutes: number) => void;
     resetDailyUsage: () => void;
     isDailyLimitReached: boolean;
@@ -60,6 +61,7 @@ interface UserPreferencesContextType {
 const UserPreferencesContext = createContext<UserPreferencesContextType>({
     preferences: DEFAULT_PREFERENCES,
     updatePreferences: () => { },
+    savePreferences: async () => { },
     incrementUsage: () => { },
     resetDailyUsage: () => { },
     isDailyLimitReached: false,
@@ -161,6 +163,16 @@ export const UserPreferencesProvider = ({ children }: { children: React.ReactNod
         setPreferences(prev => ({ ...prev, dailyUsageMinutes: 0 }));
     }, [setPreferences]);
 
+    const savePreferences = useCallback(async () => {
+        if (!user || !isHydrated) return;
+        const userPrefsRef = doc(db, "users", user.uid, "settings", "preferences");
+        try {
+            await setDoc(userPrefsRef, preferences, { merge: true });
+        } catch (err) {
+            console.error("Failed to force save prefs:", err);
+        }
+    }, [user, isHydrated, preferences]);
+
     const remainingMinutes = Math.max(0, 20 - (preferences.dailyUsageMinutes || 0));
     const isDailyLimitReached = remainingMinutes <= 0;
 
@@ -181,6 +193,7 @@ export const UserPreferencesProvider = ({ children }: { children: React.ReactNod
         <UserPreferencesContext.Provider value={{
             preferences,
             updatePreferences,
+            savePreferences,
             incrementUsage,
             resetDailyUsage,
             isDailyLimitReached,
