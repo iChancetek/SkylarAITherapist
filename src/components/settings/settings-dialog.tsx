@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useUserPreferences, LanguageCode, SessionDuration } from "@/lib/user-preferences";
 import { useAuthContext } from "@/lib/auth";
-import { Settings, User, Monitor, Clock, Mic, Languages, Shield, LogOut, Check } from "lucide-react";
+import { Settings, User, Monitor, Clock, Mic, Languages, Shield, LogOut, Check, History, MessageSquare, Calendar } from "lucide-react";
+import { getAllUserMemories, getSessionDetails, SessionMemory } from '@/lib/session-memory';
 
 export function SettingsDialog({ children, onResumeSession }: { children: React.ReactNode, onResumeSession?: (session: SessionMemory) => void }) {
     const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
@@ -24,42 +25,7 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
         }
     };
 
-    // ... (rest of component until HistoryView usage)
 
-    {/* History Tab (New!) */ }
-    <TabsContent value="history" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
-        <header>
-            <h2 className="text-3xl font-light mb-2">Memory & History</h2>
-            <p className="text-white/50">Review your past sessions and what iSkylar remembers.</p>
-        </header>
-
-        <HistoryView userId={user?.uid} onResume={handleResumeWrapper} />
-    </TabsContent>
-    // ...
-
-    // Update HistoryView signature
-    function HistoryView({ userId, onResume }: { userId: string | undefined, onResume?: (session: SessionMemory) => void }) {
-        // ...
-        // Update Resume Button logic:
-        <Button className="bg-purple-600 hover:bg-purple-500 text-white border-0 w-full" onClick={async () => {
-            if (onResume) {
-                // Fetch full details including transcript if needed, or if already have it
-                // Note: `getAllUserMemories` filtered out transcript. We need to fetch it now.
-                setLoading(true);
-                const fullSession = await getSessionDetails(selectedMemory.sessionId);
-                if (fullSession) {
-                    onResume(fullSession);
-                }
-                setLoading(false);
-            }
-        }}>
-            {loading ? "Loading Context..." : "Resume Session"}
-        </Button>
-        // ...
-    }
-
-    // Add import
-    import { getAllUserMemories, getSessionDetails, SessionMemory } from '@/lib/session-memory';
 
 
     return (
@@ -264,7 +230,7 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
 
 // Sub-components
 
-import { getAllUserMemories, SessionMemory } from '@/lib/session-memory';
+
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar, MessageSquare, History } from 'lucide-react';
 

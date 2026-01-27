@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Brain, Heart, Shield, Sparkles, Mic, Clock } from "lucide-react";
+import { Footer } from "@/components/footer";
 
 export default function LandingPage() {
     return (
@@ -165,8 +166,4 @@ export default function LandingPage() {
     );
 }
 
-// Ensure Footer is imported
-import { Footer } from "@/components/footer";
-        </div >
-    );
 }
