@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Brain, Sparkles, Heart, Zap, Globe, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Footer } from "@/components/footer";
 
 export default function LearnMorePage() {
     return (
@@ -127,9 +128,7 @@ export default function LearnMorePage() {
             </section>
 
 
-            <footer className="border-t border-white/5 py-12 text-center text-white/30 text-sm">
-                <p>&copy; {new Date().getFullYear()} Developed by Chancellor Minus @ ChanceTEK.</p>
-            </footer>
+            <Footer />
         </div>
     );
 }

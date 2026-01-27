@@ -160,18 +160,13 @@ export default function LandingPage() {
                 </Link>
             </section>
 
-            <footer className="border-t border-white/10 py-12 text-center text-muted-foreground bg-black/40">
-                <div className="container mx-auto px-4 space-y-4">
-                    <div className="flex justify-center gap-6 text-sm font-medium">
-                        <Link href="/learn-more" className="hover:text-primary transition-colors">Features</Link>
-                        <Link href="/privacy" className="hover:text-primary transition-colors">Privacy & Security</Link>
-                        <a href="mailto:support@chancetek.com" className="hover:text-primary transition-colors">Support</a>
-                    </div>
-                    <p className="text-sm opacity-60">
-                        &copy; {new Date().getFullYear()} Developed by Chancellor Minus @ ChanceTEK.
-                    </p>
-                </div>
-            </footer>
+            <Footer />
         </div>
+    );
+}
+
+// Ensure Footer is imported
+import { Footer } from "@/components/footer";
+        </div >
     );
 }

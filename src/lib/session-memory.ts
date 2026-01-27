@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, limit, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 
 export interface SessionMemory {
     userId: string;
@@ -72,6 +72,27 @@ export async function getRecentMemories(
     } catch (error) {
         console.error('Failed to retrieve session memories:', error);
         return [];
+    }
+}
+
+/**
+ * Get full details of a specific session (including transcript)
+ */
+export async function getSessionDetails(sessionId: string): Promise<SessionMemory | null> {
+    try {
+        const docRef = doc(db, 'session_memories', sessionId);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            return {
+                sessionId: docSnap.id,
+                ...docSnap.data()
+            } as SessionMemory;
+        }
+        return null;
+    } catch (error) {
+        console.error("Failed to fetch session details:", error);
+        return null;
     }
 }
 

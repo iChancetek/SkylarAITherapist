@@ -25,16 +25,16 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
     return (
         <div
             className={cn(
-                "fixed left-0 top-1/2 -translate-y-1/2 z-40 flex flex-col transition-all duration-500 ease-out",
-                isHovered ? "w-72" : "w-2" // Collapsed vs Expanded width
+                "fixed left-0 top-1/2 -translate-y-1/2 z-[100] flex flex-col transition-all duration-500 ease-out", // Increased z-index to 100
+                isHovered ? "w-72" : "w-6" // Increased collapsed width trigger from w-2 to w-6
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
             {/* The Trigger Area (Invisible or minimal) */}
             <div className={cn(
-                "absolute left-0 top-0 bottom-0 w-4 h-full cursor-pointer transition-opacity",
-                isHovered ? "opacity-0" : "opacity-100 hover:bg-white/5"
+                "absolute left-0 top-0 bottom-0 w-full cursor-pointer transition-opacity",
+                isHovered ? "opacity-0" : "opacity-0 hover:bg-white/5" // kept invisible but check if user wants visual cue? "invisible" was requested.
             )} />
 
             {/* The Sidebar Content */}

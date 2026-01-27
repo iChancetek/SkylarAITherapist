@@ -492,13 +492,7 @@ export default function VoiceInterface() {
     <div className="relative flex flex-col h-full min-h-screen w-full items-center justify-between overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
 
       {/* Settings Entry Point - Top Right */}
-      <div className="absolute top-6 right-6 z-50">
-        <SettingsDialog>
-          <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10 transition-all rounded-full w-10 h-10">
-            <Settings className="w-5 h-5" />
-          </Button>
-        </SettingsDialog>
-      </div>
+      {/* Settings Entry Point - Moved to Header */}
 
       {/* Ambient light effects (Unchanged) */}
       <div className="fixed inset-0 pointer-events-none">
@@ -525,7 +519,24 @@ export default function VoiceInterface() {
             <div className="absolute inset-0 rounded-full border-2 border-purple-400/50 animate-ping"></div>
           </div>
 
-          <h1 className="text-6xl font-bold tracking-tight mb-3 gradient-text">iSkylar</h1>
+          <div className="flex items-center gap-3 mb-3">
+            <SettingsDialog onResumeSession={(session) => {
+              const resumedHistory: ChatMessage[] = session.transcript.map((t: any, i: number) => ({
+                id: `resumed-${i}-${t.timestamp}`,
+                speaker: t.speaker === 'system' ? 'system' : t.speaker === 'user' ? 'user' : 'iSkylar',
+                text: t.text,
+                icon: t.speaker === 'user' ? User : Brain
+              }));
+              setChatHistory(resumedHistory);
+              setSessionStarted(true);
+              toast({ title: "Session Resumed", description: "Context loaded from history." });
+            }}>
+              <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10 transition-all rounded-full w-10 h-10 mt-1">
+                <Settings className="w-5 h-5" />
+              </Button>
+            </SettingsDialog>
+            <h1 className="text-6xl font-bold tracking-tight gradient-text">iSkylar</h1>
+          </div>
           <p className="text-lg text-white/80 font-medium tracking-wide">Your AI Voice Therapist</p>
         </header>
       </div>

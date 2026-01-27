@@ -4,6 +4,7 @@ import { useAuthContext } from "@/lib/auth";
 import Link from "next/link";
 import { Shield, Lock, Cloud, Eye, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Footer } from "@/components/footer";
 
 export default function PrivacyPage() {
     return (
@@ -94,9 +95,7 @@ export default function PrivacyPage() {
                 </div>
             </main>
 
-            <footer className="border-t border-white/5 py-12 text-center text-white/30 text-sm">
-                <p>&copy; {new Date().getFullYear()} iSkylar. All rights reserved.</p>
-            </footer>
+            <Footer />
         </div>
     );
 }

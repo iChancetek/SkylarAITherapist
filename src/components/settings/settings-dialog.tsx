@@ -12,17 +12,72 @@ import { useUserPreferences, LanguageCode, SessionDuration } from "@/lib/user-pr
 import { useAuthContext } from "@/lib/auth";
 import { Settings, User, Monitor, Clock, Mic, Languages, Shield, LogOut, Check } from "lucide-react";
 
-export function SettingsDialog({ children }: { children: React.ReactNode }) {
+export function SettingsDialog({ children, onResumeSession }: { children: React.ReactNode, onResumeSession?: (session: SessionMemory) => void }) {
     const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
     const { user, handleLogout } = useFirebaseAuthOps();
     const [open, setOpen] = useState(false);
+
+    const handleResumeWrapper = (session: SessionMemory) => {
+        if (onResumeSession) {
+            onResumeSession(session);
+            setOpen(false); // Close dialog
+        }
+    };
+
+    // ... (rest of component until HistoryView usage)
+
+    {/* History Tab (New!) */ }
+    <TabsContent value="history" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+        <header>
+            <h2 className="text-3xl font-light mb-2">Memory & History</h2>
+            <p className="text-white/50">Review your past sessions and what iSkylar remembers.</p>
+        </header>
+
+        <HistoryView userId={user?.uid} onResume={handleResumeWrapper} />
+    </TabsContent>
+    // ...
+
+    // Update HistoryView signature
+    function HistoryView({ userId, onResume }: { userId: string | undefined, onResume?: (session: SessionMemory) => void }) {
+        // ...
+        // Update Resume Button logic:
+        <Button className="bg-purple-600 hover:bg-purple-500 text-white border-0 w-full" onClick={async () => {
+            if (onResume) {
+                // Fetch full details including transcript if needed, or if already have it
+                // Note: `getAllUserMemories` filtered out transcript. We need to fetch it now.
+                setLoading(true);
+                const fullSession = await getSessionDetails(selectedMemory.sessionId);
+                if (fullSession) {
+                    onResume(fullSession);
+                }
+                setLoading(false);
+            }
+        }}>
+            {loading ? "Loading Context..." : "Resume Session"}
+        </Button>
+        // ...
+    }
+
+    // Add import
+    import { getAllUserMemories, getSessionDetails, SessionMemory } from '@/lib/session-memory';
+
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
-            <DialogContent className="max-w-4xl bg-black/60 backdrop-blur-3xl border-white/10 text-white shadow-2xl rounded-2xl overflow-hidden h-[85vh] p-0 flex">
+            <DialogContent className="max-w-4xl bg-black/60 backdrop-blur-3xl border-white/10 text-white shadow-2xl rounded-2xl overflow-hidden h-[85vh] p-0 flex flex-col">
+                {/* Close / Save Bar (Mobile/Desktop friendly) */}
+                <div className="absolute top-4 right-4 z-50">
+                    <Button
+                        onClick={() => setOpen(false)}
+                        className="rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/5 backdrop-blur-md"
+                    >
+                        <Check className="w-4 h-4 mr-2" />
+                        Save & Exit
+                    </Button>
+                </div>
                 <Tabs defaultValue="account" className="flex w-full h-full">
                     {/* Sidebar */}
                     <div className="w-64 bg-white/5 border-r border-white/5 flex flex-col p-6 space-y-6">
@@ -227,7 +282,19 @@ function HistoryView({ userId }: { userId: string | undefined }) {
         });
     }, [userId]);
 
-    if (loading) return <div className="text-white/50 animate-pulse">Loading history...</div>;
+    const formatDate = (ts: any) => {
+        if (!ts) return 'Unknown Date';
+        if (ts.toDate) return ts.toDate().toLocaleDateString();
+        if (ts instanceof Date) return ts.toLocaleDateString();
+        return 'Unknown Date';
+    };
+
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center h-64 text-white/50 space-y-4">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-purple-500 rounded-full animate-spin"></div>
+            <p>Loading your journey...</p>
+        </div>
+    );
 
     if (selectedMemory) {
         return (
@@ -237,10 +304,9 @@ function HistoryView({ userId }: { userId: string | undefined }) {
                 </Button>
                 <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
                     <h3 className="text-xl font-bold mb-2">Session Transcript</h3>
-                    <p className="text-sm text-white/50 mb-4">{new Date((selectedMemory.timestamp as any).toDate()).toLocaleDateString()}</p>
+                    <p className="text-sm text-white/50 mb-4">{formatDate(selectedMemory.timestamp)}</p>
                     <ScrollArea className="h-[400px]">
                         <div className="space-y-4 pr-4">
-                            {/* In a real app we'd load the full transcript if not present. Assuming transcript is sparse here for now. */}
                             {selectedMemory.keyInsights.length > 0 && (
                                 <div className="mb-6">
                                     <h4 className="text-sm font-semibold text-purple-300 mb-2">Key Insights</h4>
@@ -249,7 +315,16 @@ function HistoryView({ userId }: { userId: string | undefined }) {
                                     </ul>
                                 </div>
                             )}
-                            <p className="text-white/40 italic">Full transcript viewing coming in next update...</p>
+
+                            <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center">
+                                <p className="text-purple-200 mb-3">Want to continue this conversation?</p>
+                                <Button className="bg-purple-600 hover:bg-purple-500 text-white border-0 w-full" onClick={() => {
+                                    // Todo: Implement resume logic via callback
+                                    alert("Resume feature coming in next step!");
+                                }}>
+                                    Resume Session
+                                </Button>
+                            </div>
                         </div>
                     </ScrollArea>
                 </div>
@@ -259,7 +334,12 @@ function HistoryView({ userId }: { userId: string | undefined }) {
 
     return (
         <div className="grid gap-3">
-            {memories.length === 0 && <p className="text-white/50">No past sessions found.</p>}
+            {memories.length === 0 && !loading && (
+                <div className="text-center py-12 text-white/50">
+                    <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No past sessions found.</p>
+                </div>
+            )}
             {memories.map(m => (
                 <button
                     key={m.sessionId}
@@ -267,24 +347,19 @@ function HistoryView({ userId }: { userId: string | undefined }) {
                     className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 transition-all text-left group"
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-300">
                             <MessageSquare className="w-5 h-5" />
                         </div>
                         <div>
-                            <p className="font-medium text-white group-hover:text-purple-300 transition-colors">
+                            <p className="font-medium text-white group-hover:text-purple-300 transition-colors line-clamp-1">
                                 {m.keyInsights[0] || "Therapy Session"}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-white/40">
                                 <Calendar className="w-3 h-3" />
-                                <span>{new Date((m.timestamp as any).toDate()).toLocaleDateString()}</span>
+                                <span>{formatDate(m.timestamp)}</span>
                                 <span>•</span>
                                 <span>{Math.ceil(m.duration / 60)} mins</span>
                             </div>
-                        </div>
-                    </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                            <span className="text-white">→</span>
                         </div>
                     </div>
                 </button>
