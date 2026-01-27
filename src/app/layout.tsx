@@ -5,6 +5,8 @@ import { AuthProvider } from '@/lib/auth';
 import { PT_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import InstallPWA from '@/components/install-pwa';
+import AuthGuard from '@/components/auth/auth-guard';
+import { UserPreferencesProvider } from '@/lib/user-preferences';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -50,9 +52,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
-            <Toaster />
-            <InstallPWA />
+            <UserPreferencesProvider>
+              <AuthGuard>
+                {children}
+              </AuthGuard>
+              <Toaster />
+              <InstallPWA />
+            </UserPreferencesProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

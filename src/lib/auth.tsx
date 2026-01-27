@@ -14,6 +14,7 @@ import {
   setPersistence,
   browserLocalPersistence,
   sendPasswordResetEmail,
+  sendEmailVerification,
 } from "firebase/auth";
 import { app, db } from "./firebase";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
@@ -25,29 +26,34 @@ import { Loader2 } from "lucide-react";
 const auth = getAuth(app);
 
 interface UserProfile {
-    uid: string;
-    email: string | null;
-    fullName: string | null;
-    username: string | null;
-    profileImage: string | null;
-    createdAt: any; 
-    lastLogin: any;
-    role: string;
-    language?: string;
+  uid: string;
+  email: string | null;
+  fullName: string | null;
+  username: string | null;
+  profileImage: string | null;
+  createdAt: any;
+  lastLogin: any;
+  role: string;
+  language?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  isEmailVerified: boolean;
+  sendVerification: () => Promise<void>;
+  reloadUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   userProfile: null,
   loading: true,
-  updateUserProfile: async () => {},
+  updateUserProfile: async () => { },
+  isEmailVerified: false,
+  sendVerification: async () => { },
+  reloadUser: async () => { },
 });
 
 export const useAuthContext = () => useContext(AuthContext);
@@ -56,6 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const { toast } = useToast();
 
   const fetchUserProfile = async (firebaseUser: User) => {
@@ -64,8 +71,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (userDoc.exists()) {
       setUserProfile(userDoc.data() as UserProfile);
     } else {
-      // This case might happen for users that existed in Auth but not in Firestore.
-      // A new profile will be created on their next sign-in.
       setUserProfile(null);
     }
   };
@@ -83,13 +88,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const sendVerification = async () => {
+    if (user) {
+      try {
+        await sendEmailVerification(user);
+        toast({ title: "Verification Sent", description: "Please check your inbox." });
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+    }
+  };
+
+  const reloadUser = async () => {
+    if (user) {
+      await user.reload();
+      setIsEmailVerified(user.emailVerified);
+      // Force UI update by setting user to a shallow copy if needed, 
+      // but usually the isEmailVerified state is enough.
+      const freshUser = auth.currentUser;
+      if (freshUser) setUser(freshUser);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
+        setIsEmailVerified(user.emailVerified);
         await fetchUserProfile(user);
       } else {
         setUserProfile(null);
+        setIsEmailVerified(false);
       }
       setLoading(false);
     });
@@ -98,7 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, updateUserProfile }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, updateUserProfile, isEmailVerified, sendVerification, reloadUser }}>
       {loading ? <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : children}
     </AuthContext.Provider>
   );
@@ -115,7 +144,7 @@ export const useFirebaseAuth = () => {
       await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      
+
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
 
@@ -132,9 +161,9 @@ export const useFirebaseAuth = () => {
           language: "en", // Default language
         });
       } else {
-         await updateDoc(userRef, {
-            lastLogin: serverTimestamp(),
-         });
+        await updateDoc(userRef, {
+          lastLogin: serverTimestamp(),
+        });
       }
       router.push("/dashboard");
     } catch (error: any) {
@@ -162,13 +191,13 @@ export const useFirebaseAuth = () => {
       });
     }
   };
-  
+
   const handleEmailPasswordSignUp = async (fullName: string, username: string, email: string, pass: string) => {
     if (!fullName || !username || !email || !pass) {
-        toast({ title: "Sign-up Error", description: "Please fill out all fields.", variant: "destructive" });
-        return;
+      toast({ title: "Sign-up Error", description: "Please fill out all fields.", variant: "destructive" });
+      return;
     }
-     if (pass.length < 8) {
+    if (pass.length < 8) {
       toast({
         title: "Password Too Short",
         description: "Password must be at least 8 characters long.",
@@ -178,49 +207,49 @@ export const useFirebaseAuth = () => {
     }
 
     try {
-        await setPersistence(auth, browserLocalPersistence);
-        const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-        const user = userCredential.user;
+      await setPersistence(auth, browserLocalPersistence);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      const user = userCredential.user;
 
-        await setDoc(doc(db, "users", user.uid), {
-            uid: user.uid,
-            username: username,
-            email: user.email,
-            fullName: fullName,
-            profileImage: null,
-            createdAt: serverTimestamp(),
-            lastLogin: serverTimestamp(),
-            role: "user",
-            language: "en", // Default language
-        });
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        username: username,
+        email: user.email,
+        fullName: fullName,
+        profileImage: null,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        role: "user",
+        language: "en", // Default language
+      });
 
-        router.push("/dashboard");
+      router.push("/dashboard");
 
     } catch (error: any) {
-        let title = "Sign-up Error";
-        let description = "An unexpected error occurred. Please try again.";
-        
-        if (error.code === 'auth/email-already-in-use') {
-            description = 'This email address is already associated with an account.';
-        } else if (error.code === 'auth/invalid-email') {
-            description = 'The email address you entered is not valid.';
-        } else if (error.code === 'permission-denied' || error.code === 'auth/permission-denied') {
-            title = "Permission Denied";
-            description = "Could not create user profile. Please check your Firestore security rules.";
-        }
-        
-        toast({
-            title: title,
-            description: description,
-            variant: "destructive",
-        });
+      let title = "Sign-up Error";
+      let description = "An unexpected error occurred. Please try again.";
+
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'This email address is already associated with an account.';
+      } else if (error.code === 'auth/invalid-email') {
+        description = 'The email address you entered is not valid.';
+      } else if (error.code === 'permission-denied' || error.code === 'auth/permission-denied') {
+        title = "Permission Denied";
+        description = "Could not create user profile. Please check your Firestore security rules.";
+      }
+
+      toast({
+        title: title,
+        description: description,
+        variant: "destructive",
+      });
     }
-};
+  };
 
   const handleEmailPasswordLogin = async (email: string, pass: string) => {
     if (!email || !pass) {
-        toast({ title: "Login Error", description: "Please enter both email and password.", variant: "destructive" });
-        return;
+      toast({ title: "Login Error", description: "Please enter both email and password.", variant: "destructive" });
+      return;
     }
     try {
       await setPersistence(auth, browserLocalPersistence);
@@ -240,7 +269,7 @@ export const useFirebaseAuth = () => {
         title = "Permission Denied";
         description = "Could not update user session. Please check your Firestore security rules.";
       }
-      
+
       toast({
         title: title,
         description: description,

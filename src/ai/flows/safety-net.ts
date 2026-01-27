@@ -3,7 +3,7 @@
  * @fileOverview Safety net for crisis detection using OpenAI
  */
 
-import { openai } from '@/lib/openai';
+import { getOpenAIClient } from '@/lib/openai';
 
 export async function safetyNetActivation(input: { userInput: string }): Promise<{ safetyResponse: string }> {
   const userInput = input.userInput || '';
@@ -23,6 +23,7 @@ export async function safetyNetActivation(input: { userInput: string }): Promise
   }
 
   // Use OpenAI to generate a warm, supportive crisis response
+  const openai = await getOpenAIClient();
   const completion = await openai.chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [

@@ -3,7 +3,7 @@
  * @fileOverview OpenAI-based therapy conversation flow
  */
 
-import { openai } from '@/lib/openai';
+import { getOpenAIClient } from '@/lib/openai';
 import type { iSkylarInput, iSkylarOutput } from '@/ai/schema/ai-therapy';
 
 export async function askiSkylar(input: iSkylarInput): Promise<iSkylarOutput> {
@@ -132,6 +132,7 @@ User's new input: ${userInput}`;
   }
 
   // Call OpenAI API
+  const openai = await getOpenAIClient();
   const completion = await openai.chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [

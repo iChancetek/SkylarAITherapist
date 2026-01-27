@@ -3,10 +3,13 @@
  * @fileOverview OpenAI Text-to-Speech conversion
  */
 
-import { openai } from '@/lib/openai';
+import { getOpenAIClient } from '@/lib/openai';
 
 export async function textToSpeech(text: string, language: string = 'en'): Promise<{ audioDataUri: string }> {
   try {
+    // Get client (fetches key if needed)
+    const openai = await getOpenAIClient();
+
     // Use OpenAI TTS API
     const mp3 = await openai.audio.speech.create({
       model: "tts-1", // or "tts-1-hd" for higher quality

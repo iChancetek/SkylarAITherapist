@@ -1,10 +1,17 @@
 import OpenAI from 'openai';
+import { getOpenAIKey } from './secrets';
 
-// Initialize OpenAI client
-// Initialize OpenAI client
-const apiKey = process.env.OPENAI_API_KEY;
-console.log("Initializing OpenAI Client. Key exists:", !!apiKey, "Length:", apiKey?.length);
+// Lazy initialization wrapper
+export async function getOpenAIClient(): Promise<OpenAI> {
+    const apiKey = await getOpenAIKey();
 
-export const openai = new OpenAI({
-    apiKey: apiKey,
-});
+    console.log("Initializing OpenAI Client. Key exists:", !!apiKey, "Length:", apiKey?.length);
+    if (!apiKey) {
+        console.error("CRITICAL: No OpenAI API Key found even after Secret Fetch.");
+    }
+
+    return new OpenAI({
+        apiKey: apiKey,
+    });
+}
+
