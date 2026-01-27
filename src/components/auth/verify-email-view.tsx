@@ -1,13 +1,14 @@
 "use client";
 
-import { useAuthContext } from "@/lib/auth";
+import { useAuthContext, useFirebaseAuth } from "@/lib/auth"; // Added useFirebaseAuth
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, RefreshCw, LogOut } from "lucide-react";
 import { useState } from "react";
 
 export default function VerifyEmailView() {
-    const { user, sendVerification, reloadUser, handleLogout } = useFirebaseAuthOps(); // Need to expose handleLogout or use wrapper
+    const { user, sendVerification, reloadUser } = useAuthContext();
+    const { handleLogout } = useFirebaseAuth(); // Use the actual hook
     const [isResending, setIsResending] = useState(false);
     const [isChecking, setIsChecking] = useState(false);
 
@@ -61,25 +62,15 @@ export default function VerifyEmailView() {
                     </Button>
 
                     <Button
-                        onClick={() => window.location.href = '/login'} // Fallback logout trigger since we need access to handleLogout usually from a hook
+                        onClick={handleLogout}
                         variant="ghost"
                         className="w-full text-white/40 hover:text-white"
                     >
+                        <LogOut className="mr-2 h-4 w-4" />
                         Sign Out
                     </Button>
                 </CardFooter>
             </Card>
         </div>
     );
-}
-
-// Minimal hook wrapper to get handleLogout if not exposed directly in context yet, 
-// but we updated AuthContext to mostly just expose state. 
-// We should use the useFirebaseAuth hook in the component or pass it down.
-// Refactoring slightly to use useFirebaseAuth hook directly inside the component if exported, 
-// or simply assume layout handles the view switching.
-function useFirebaseAuthOps() {
-    const { user, sendVerification, reloadUser } = useAuthContext();
-    // We only need these for this specific view
-    return { user, sendVerification, reloadUser, handleLogout: () => { } };
 }
