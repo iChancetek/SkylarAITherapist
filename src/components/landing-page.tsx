@@ -73,6 +73,14 @@ export default function LandingPage() {
                                     </Button>
                                 </Link>
                             </div>
+
+                            <div className="pt-4">
+                                <Link href="/learn-more">
+                                    <Button variant="ghost" className="rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5">
+                                        Meet the Agents →
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -154,11 +162,7 @@ export default function LandingPage() {
                 <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
                     You're not limited to just one personality. Choose from 5 distinct AI companions, including Skylar (Therapist), Chancellor (Executive), and more.
                 </p>
-                <Link href="/learn-more">
-                    <Button variant="outline" className="rounded-full border-primary/20 hover:bg-primary/5">
-                        Meet the Agents
-                    </Button>
-                </Link>
+
             </section>
 
             <Footer />
