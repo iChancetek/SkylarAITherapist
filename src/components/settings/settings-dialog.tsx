@@ -232,7 +232,7 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
 
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, MessageSquare, History } from 'lucide-react';
+
 
 function HistoryView({ userId }: { userId: string | undefined }) {
     const [memories, setMemories] = useState<SessionMemory[]>([]);
