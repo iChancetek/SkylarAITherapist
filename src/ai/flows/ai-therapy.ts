@@ -8,6 +8,8 @@ import type { iSkylarInput, iSkylarOutput } from '@/ai/schema/ai-therapy';
 import { SYSTEM_PROMPTS, AgentId } from '@/ai/personas';
 import { TAVILY_TOOL_DEFINITION, performTavilySearch } from '@/ai/tools/tavily';
 
+import { getAllUserMemories } from '@/lib/session-memory';
+
 export async function askiSkylar(input: iSkylarInput): Promise<iSkylarOutput> {
   const userInput = input.userInput || '';
   const sessionState = input.sessionState || '{}';
@@ -15,6 +17,7 @@ export async function askiSkylar(input: iSkylarInput): Promise<iSkylarOutput> {
   const wasInterrupted = input.wasInterrupted || false;
   const interruptedDuring = input.interruptedDuring || '';
   const agentId = input.agentId || 'skylar';
+  const userId = input.userId;
 
   // 1. Get the correct system prompt for the selected agent
   let systemPrompt = SYSTEM_PROMPTS[agentId as AgentId] || SYSTEM_PROMPTS.skylar;
@@ -22,6 +25,29 @@ export async function askiSkylar(input: iSkylarInput): Promise<iSkylarOutput> {
   // Append language instruction
   systemPrompt += `\n\n## Conversation Language
 The conversation language is: ${language}. All your responses MUST be in this language.`;
+
+  // Append Long-Term Memory Context
+  if (userId) {
+    try {
+      const pastMemories = await getAllUserMemories(userId);
+      if (pastMemories.length > 0) {
+        // Sort by date desc (already done by query) -> reverse for chronological order in prompt? 
+        // Or just list them. Reverse is better for narrative flow, but recent first is good for "current context".
+        // Let's do recent first but labeled clearly.
+        const memoryContext = pastMemories.slice(0, 30).map(m => {
+          const date = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleDateString() : 'Unknown Date';
+          const insights = m.keyInsights.length > 0 ? m.keyInsights.join(' ') : 'No key insights recorded.';
+          return `- [${date}]: ${insights}`;
+        }).join('\n');
+
+        systemPrompt += `\n\n## LONG-TERM MEMORY (Past Sessions)
+You have access to the user's past session insights. Use this to recall details, names, and themes. NEVER mention "according to my database" or "long term memory". Just "Know" it naturally.
+${memoryContext}`;
+      }
+    } catch (e) {
+      console.error("Failed to load long-term memory:", e);
+    }
+  }
 
   // 2. Build User context
   let userMessage = userInput;
@@ -54,12 +80,12 @@ The conversation language is: ${language}. All your responses MUST be in this la
     turnCount++;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-5.2-instant", // The latest Jan 2026 conversational flagship
       messages: messages,
       tools: tools,
       tool_choice: "auto",
-      temperature: agentId !== 'skylar' ? 0.9 : 0.8, // Slightly more creative for companions
-      max_tokens: 250, // Slightly increased for tool/richer content
+      temperature: 0.8, // Perfect for natural "vibe"
+      max_tokens: 400, // Increased for deeper thoughts
     });
 
     const choice = completion.choices[0];

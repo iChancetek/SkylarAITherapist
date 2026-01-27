@@ -147,9 +147,29 @@ export default function LandingPage() {
                 </section>
             </main>
 
-            <footer className="border-t border-white/10 py-8 text-center text-muted-foreground">
-                <div className="container mx-auto px-4">
-                    <p>© {new Date().getFullYear()} iSkylar. All rights reserved.</p>
+            {/* Multi-Agent Ecosystem Section */}
+            <section className="container mx-auto px-4 py-16 text-center">
+                <h2 className="text-3xl font-bold mb-6">A Team of Experts</h2>
+                <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+                    You're not limited to just one personality. Choose from 5 distinct AI companions, including Skylar (Therapist), Chancellor (Executive), and more.
+                </p>
+                <Link href="/learn-more">
+                    <Button variant="outline" className="rounded-full border-primary/20 hover:bg-primary/5">
+                        Meet the Agents
+                    </Button>
+                </Link>
+            </section>
+
+            <footer className="border-t border-white/10 py-12 text-center text-muted-foreground bg-black/40">
+                <div className="container mx-auto px-4 space-y-4">
+                    <div className="flex justify-center gap-6 text-sm font-medium">
+                        <Link href="/learn-more" className="hover:text-primary transition-colors">Features</Link>
+                        <Link href="/privacy" className="hover:text-primary transition-colors">Privacy & Security</Link>
+                        <a href="mailto:support@chancetek.com" className="hover:text-primary transition-colors">Support</a>
+                    </div>
+                    <p className="text-sm opacity-60">
+                        &copy; {new Date().getFullYear()} Developed by Chancellor Minus @ ChanceTEK.
+                    </p>
                 </div>
             </footer>
         </div>

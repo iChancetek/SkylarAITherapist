@@ -9,7 +9,7 @@ export interface SessionMemory {
     emotionalPatterns: string[];
     duration: number;
     keyInsights: string[];
-    privacyLevel: 'standard';
+    transcript: { speaker: string; text: string; timestamp: number }[];
 }
 
 /**
@@ -22,6 +22,7 @@ export async function saveSessionMemory(
         emotionalPatterns: string[];
         duration: number;
         keyInsights: string[];
+        transcript: { speaker: string; text: string; timestamp: number }[];
     }
 ): Promise<void> {
     try {
@@ -33,6 +34,7 @@ export async function saveSessionMemory(
             duration: sessionData.duration,
             keyInsights: sessionData.keyInsights,
             privacyLevel: 'standard',
+            transcript: sessionData.transcript,
         };
 
         await addDoc(collection(db, 'session_memories'), sessionMemory);
@@ -46,7 +48,7 @@ export async function saveSessionMemory(
  */
 export async function getRecentMemories(
     userId: string,
-    limitCount: number = 3
+    limitCount: number = 5
 ): Promise<SessionMemory[]> {
     try {
         const q = query(
@@ -69,6 +71,48 @@ export async function getRecentMemories(
         return memories;
     } catch (error) {
         console.error('Failed to retrieve session memories:', error);
+        return [];
+    }
+}
+
+/**
+ * Retrieve ALL past session summaries (lightweight) for Long-Term Context
+ */
+export async function getAllUserMemories(userId: string): Promise<SessionMemory[]> {
+    try {
+        // In a real production app with thousands of sessions, we'd use a separate summary collection 
+        // or a cursor-based pagination. For now, fetching all summaries (metadata) is fine.
+        // We will exclude the 'transcript' field if possible to save bandwidth, 
+        // but Firestore client SDK doesn't support 'select' fields easily without Admin SDK.
+        // So we just fetch and map.
+
+        const q = query(
+            collection(db, 'session_memories'),
+            where('userId', '==', userId),
+            orderBy('timestamp', 'desc')
+        );
+
+        const querySnapshot = await getDocs(q);
+        const memories: SessionMemory[] = [];
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            memories.push({
+                sessionId: doc.id,
+                userId: data.userId,
+                timestamp: data.timestamp,
+                conversationalThemes: data.conversationalThemes,
+                emotionalPatterns: data.emotionalPatterns,
+                duration: data.duration,
+                keyInsights: data.keyInsights,
+                privacyLevel: data.privacyLevel,
+                transcript: [], // Don't load full transcript into memory to keep it light
+            } as SessionMemory);
+        });
+
+        return memories;
+    } catch (error) {
+        console.error('Failed to retrieve all user memories:', error);
         return [];
     }
 }

@@ -14,220 +14,285 @@ import { Settings, User, Monitor, Clock, Mic, Languages, Shield, LogOut, Check }
 
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
     const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
-
-    const { user, handleLogout } = useFirebaseAuthOps(); // Need access to logout
+    const { user, handleLogout } = useFirebaseAuthOps();
     const [open, setOpen] = useState(false);
-
-    // Local state for immediate feedback inside dialog if needed, 
-    // but using global state directly for "Changes apply instantly" requirement.
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-black/80 backdrop-blur-xl border-white/10 text-white shadow-2xl overflow-hidden max-h-[90vh] flex flex-col p-0">
-                <DialogHeader className="p-6 border-b border-white/10 bg-white/5">
-                    <DialogTitle className="text-xl font-light tracking-wide flex items-center gap-2">
-                        <Settings className="w-5 h-5 text-white/60" />
-                        iSkylar Settings
-                    </DialogTitle>
-                    <DialogDescription className="text-white/40">
-                        Customize your therapeutic environment.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="flex-1 overflow-hidden">
-                    <Tabs defaultValue="account" className="flex h-full">
-                        <div className="w-48 bg-white/5 border-r border-white/10 p-4 space-y-2">
-                            <TabsList className="flex flex-col h-auto bg-transparent space-y-1 p-0">
-                                <SettingsTabTrigger value="account" icon={User} label="Account" />
-                                <SettingsTabTrigger value="appearance" icon={Monitor} label="Appearance" />
-                                <SettingsTabTrigger value="session" icon={Clock} label="Session" />
-                                <SettingsTabTrigger value="voice" icon={Mic} label="Voice & Text" />
-                                <SettingsTabTrigger value="language" icon={Languages} label="Language" />
-                                <SettingsTabTrigger value="privacy" icon={Shield} label="Privacy" />
-                            </TabsList>
+            <DialogContent className="max-w-4xl bg-black/60 backdrop-blur-3xl border-white/10 text-white shadow-2xl rounded-2xl overflow-hidden h-[85vh] p-0 flex">
+                <Tabs defaultValue="account" className="flex w-full h-full">
+                    {/* Sidebar */}
+                    <div className="w-64 bg-white/5 border-r border-white/5 flex flex-col p-6 space-y-6">
+                        <div className="flex items-center gap-3 px-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+                                <Settings className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-lg font-bold tracking-tight">Settings</span>
                         </div>
 
-                        <div className="flex-1 p-6 overflow-y-auto bg-black/20">
-                            {/* Account Tab */}
-                            <TabsContent value="account" className="space-y-6 mt-0">
-                                <SectionHeader title="Your Account" description="Manage your identity settings." />
+                        <TabsList className="flex flex-col h-auto bg-transparent space-y-1 p-0 w-full">
+                            <SettingsTabTrigger value="account" icon={User} label="Profile" />
+                            <SettingsTabTrigger value="appearance" icon={Monitor} label="Appearance" />
+                            <SettingsTabTrigger value="voice" icon={Mic} label="Voice & Audio" />
+                            <SettingsTabTrigger value="language" icon={Languages} label="Language" />
+                            <SettingsTabTrigger value="history" icon={History} label="Memory & History" />
+                            <SettingsTabTrigger value="privacy" icon={Shield} label="Privacy & Security" />
+                        </TabsList>
 
-                                <div className="space-y-4">
-                                    <div className="grid gap-2">
-                                        <Label>User Name</Label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                className="flex h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                                placeholder="Your Name"
-                                                value={preferences.userName}
-                                                onChange={(e) => updatePreferences({ userName: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-white/10">
-                                        <Button
-                                            variant="destructive"
-                                            className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20"
-                                            onClick={() => window.location.href = '/login'} // Fallback logout
-                                        >
-                                            <LogOut className="w-4 h-4 mr-2" />
-                                            Sign Out
-                                        </Button>
-                                    </div>
+                        <div className="mt-auto px-2">
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-white/5">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Clock className="w-4 h-4 text-purple-300" />
+                                    <span className="text-xs font-medium text-purple-200">Daily Limit</span>
                                 </div>
-                            </TabsContent>
+                                <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden mb-2">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-purple-500 to-blue-500"
+                                        style={{ width: `${Math.min(100, (preferences.dailyUsageMinutes / 20) * 100)}%` }}
+                                    ></div>
+                                </div>
+                                <p className="text-xs text-white/50">{remainingMinutes} mins left today</p>
+                            </div>
+                        </div>
+                    </div>
 
-                            {/* Appearance Tab */}
-                            <TabsContent value="appearance" className="space-y-6 mt-0">
-                                <SectionHeader title="Appearance" description="Review how iSkylar looks on your device." />
+                    {/* Content Area */}
+                    <div className="flex-1 overflow-y-auto bg-transparent p-8">
+                        {/* Account Tab */}
+                        <TabsContent value="account" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <header>
+                                <h2 className="text-3xl font-light mb-2">Profile</h2>
+                                <p className="text-white/50">Manage your identity and account settings.</p>
+                            </header>
 
-                                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-                                    <div className="space-y-1">
-                                        <Label className="text-base">Color Theme</Label>
-                                        <p className="text-xs text-white/50">Switch between Light, Dark, or System Sync.</p>
-                                    </div>
-                                    <Select
-                                        value={preferences.theme}
-                                        onValueChange={(val: any) => updatePreferences({ theme: val })}
+                            <div className="grid gap-6">
+                                <section className="space-y-4">
+                                    <Label>Display Name</Label>
+                                    <input
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                                        placeholder="How should iSkylar call you?"
+                                        value={preferences.userName}
+                                        onChange={(e) => updatePreferences({ userName: e.target.value })}
+                                    />
+                                </section>
+
+                                <div className="pt-8 border-t border-white/5">
+                                    <Button
+                                        variant="destructive"
+                                        onClick={handleLogout}
+                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20"
                                     >
-                                        <SelectTrigger className="w-[140px] bg-white/10 border-white/10 text-white">
-                                            <SelectValue placeholder="Select theme" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                            <SelectItem value="light">Light</SelectItem>
-                                            <SelectItem value="dark">Dark</SelectItem>
-                                            <SelectItem value="system">System</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                        <LogOut className="w-4 h-4 mr-2" />
+                                        Sign Out
+                                    </Button>
                                 </div>
-                            </TabsContent>
+                            </div>
+                        </TabsContent>
 
-                            {/* Session Tab */}
-                            <TabsContent value="session" className="space-y-6 mt-0">
-                                <SectionHeader title="Session Preferences" description="Configure your daily therapy limits." />
+                        {/* Appearance Tab */}
+                        <TabsContent value="appearance" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <header>
+                                <h2 className="text-3xl font-light mb-2">Appearance</h2>
+                                <p className="text-white/50">Customize the look and feel of your experience.</p>
+                            </header>
 
-                                <div className="space-y-6">
-                                    <div className="space-y-3">
-                                        <Label>Default Session Length</Label>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            {[10, 15, 20].map((mins) => (
-                                                <Button
-                                                    key={mins}
-                                                    variant={preferences.defaultDuration === mins ? "default" : "outline"}
-                                                    className={preferences.defaultDuration === mins
-                                                        ? "bg-purple-600 hover:bg-purple-500 border-0"
-                                                        : "bg-transparent border-white/10 hover:bg-white/5 text-white/70"}
-                                                    onClick={() => updatePreferences({ defaultDuration: mins as SessionDuration })}
-                                                >
-                                                    {mins} mins
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 bg-white/5 rounded-lg border border-white/5 space-y-3">
-                                        <div className="flex justify-between items-center">
-                                            <Label>Daily Usage</Label>
-                                            <span className="text-sm text-purple-300 font-mono">{remainingMinutes} mins remaining</span>
-                                        </div>
-                                        <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-500"
-                                                style={{ width: `${Math.min(100, (preferences.dailyUsageMinutes / 20) * 100)}%` }}
-                                            ></div>
-                                        </div>
-                                        <p className="text-xs text-white/40">
-                                            iSkylar limits sessions to 20 minutes per day to ensure healthy engagement.
-                                        </p>
-                                    </div>
+                            <div className="grid gap-4">
+                                <Label className="text-lg">Theme</Label>
+                                <div className="grid grid-cols-3 gap-4">
+                                    {['light', 'dark', 'system'].map((t) => (
+                                        <button
+                                            key={t}
+                                            onClick={() => updatePreferences({ theme: t as any })}
+                                            className={`p-4 rounded-xl border transition-all ${preferences.theme === t
+                                                ? 'bg-purple-500/20 border-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                                                : 'bg-white/5 border-white/5 text-white/50 hover:bg-white/10'}`}
+                                        >
+                                            <span className="capitalize font-medium">{t}</span>
+                                        </button>
+                                    ))}
                                 </div>
-                            </TabsContent>
+                            </div>
+                        </TabsContent>
 
-                            {/* Voice & Text Tab */}
-                            <TabsContent value="voice" className="space-y-6 mt-0">
-                                <SectionHeader title="Voice & Text" description="Control how iSkylar communicates." />
+                        {/* Voice Tab */}
+                        <TabsContent value="voice" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <header>
+                                <h2 className="text-3xl font-light mb-2">Voice & Audio</h2>
+                                <p className="text-white/50">Configure voice synthesis and recognition.</p>
+                            </header>
 
-                                <div className="space-y-4">
-                                    <SettingToggle
-                                        label="Enable Voice"
-                                        description="Hear iSkylar speak responses aloud."
-                                        checked={preferences.voiceEnabled}
-                                        onCheckedChange={(c: boolean) => updatePreferences({ voiceEnabled: c })}
-                                    />
-                                    <SettingToggle
-                                        label="Enable Transcription"
-                                        description="Show text captions while iSkylar speaks."
-                                        checked={preferences.transcriptionEnabled}
-                                        onCheckedChange={(c: boolean) => updatePreferences({ transcriptionEnabled: c })}
-                                    />
-                                    <SettingToggle
-                                        label="Auto-Scroll Transcription"
-                                        description="Automatically scroll to the newest text."
-                                        checked={preferences.autoScroll}
-                                        onCheckedChange={(c: boolean) => updatePreferences({ autoScroll: c })}
-                                        disabled={!preferences.transcriptionEnabled}
-                                    />
-                                </div>
-                            </TabsContent>
+                            <div className="space-y-6">
+                                <SettingToggle
+                                    label="Voice Output"
+                                    description="Hear agents speak responses aloud."
+                                    checked={preferences.voiceEnabled}
+                                    onCheckedChange={(c: boolean) => updatePreferences({ voiceEnabled: c })}
+                                />
+                                <SettingToggle
+                                    label="Live Transcription"
+                                    description="See real-time text captions during conversation."
+                                    checked={preferences.transcriptionEnabled}
+                                    onCheckedChange={(c: boolean) => updatePreferences({ transcriptionEnabled: c })}
+                                />
+                                <SettingToggle
+                                    label="Auto-Scroll"
+                                    description="Automatically follow the conversation flow."
+                                    checked={preferences.autoScroll}
+                                    onCheckedChange={(c: boolean) => updatePreferences({ autoScroll: c })}
+                                    disabled={!preferences.transcriptionEnabled}
+                                />
+                            </div>
+                        </TabsContent>
 
-                            {/* Language Tab */}
-                            <TabsContent value="language" className="space-y-6 mt-0">
-                                <SectionHeader title="Language" description="Choose your preferred language for voice and text." />
+                        {/* Language Tab */}
+                        <TabsContent value="language" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <header>
+                                <h2 className="text-3xl font-light mb-2">Language</h2>
+                                <p className="text-white/50">iSkylar speaks many languages fluently.</p>
+                            </header>
 
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                                        <Label>Voice Language</Label>
-                                        <LanguageSelector
-                                            value={preferences.voiceLanguage}
-                                            onChange={(val) => updatePreferences({ voiceLanguage: val })}
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                                        <Label>Text Language</Label>
-                                        <LanguageSelector
-                                            value={preferences.textLanguage}
-                                            onChange={(val) => updatePreferences({ textLanguage: val })}
-                                        />
-                                    </div>
-
-                                    <p className="text-xs text-center text-white/40 italic mt-4">
-                                        *Changes apply instantly. iSkylar will adapt naturally.*
-                                    </p>
-                                </div>
-                            </TabsContent>
-
-                            {/* Privacy Tab */}
-                            <TabsContent value="privacy" className="space-y-6 mt-0">
-                                <SectionHeader title="Privacy & Data" description="Manage your local session data." />
-
+                            <div className="grid gap-6">
                                 <div className="space-y-3">
-                                    <Button variant="outline" className="w-full justify-start border-white/10 hover:bg-white/5 text-white">
-                                        Download Session Transcripts
-                                    </Button>
-                                    <Button variant="outline" className="w-full justify-start border-white/10 hover:bg-white/5 text-white">
-                                        Clear Local Data
-                                    </Button>
+                                    <Label>Speaking Language</Label>
+                                    <LanguageSelector
+                                        value={preferences.voiceLanguage}
+                                        onChange={(val) => updatePreferences({ voiceLanguage: val })}
+                                    />
                                 </div>
-                            </TabsContent>
+                                <div className="space-y-3">
+                                    <Label>Reading Language</Label>
+                                    <LanguageSelector
+                                        value={preferences.textLanguage}
+                                        onChange={(val) => updatePreferences({ textLanguage: val })}
+                                    />
+                                </div>
+                            </div>
+                        </TabsContent>
 
-                        </div>
-                    </Tabs>
-                </div>
+                        {/* History Tab (New!) */}
+                        <TabsContent value="history" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <header>
+                                <h2 className="text-3xl font-light mb-2">Memory & History</h2>
+                                <p className="text-white/50">Review your past sessions and what iSkylar remembers.</p>
+                            </header>
 
-                <DialogFooter className="p-4 border-t border-white/10 bg-white/5 sm:justify-between items-center">
-                    <span className="text-xs text-white/30 hidden sm:block">v1.2.0 • Secure Session</span>
-                    <Button onClick={() => setOpen(false)} className="bg-white text-black hover:bg-white/90 shadow-md transform hover:scale-105 transition-all">
-                        Done
-                    </Button>
-                </DialogFooter>
+                            <HistoryView userId={user?.uid} />
+                        </TabsContent>
+
+                        {/* Privacy Tab */}
+                        <TabsContent value="privacy" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <header>
+                                <h2 className="text-3xl font-light mb-2">Privacy</h2>
+                                <p className="text-white/50">Your data is secure and private.</p>
+                            </header>
+
+                            <div className="space-y-4">
+                                <Button variant="outline" className="w-full justify-between h-14 px-6 border-white/10 hover:bg-white/5 hover:text-white">
+                                    <span>Download My Data</span>
+                                    <span className="text-xs bg-white/10 px-2 py-1 rounded">JSON</span>
+                                </Button>
+                                <Button variant="outline" className="w-full justify-between h-14 px-6 border-red-500/20 text-red-300 hover:bg-red-500/10">
+                                    <span>Delete All History</span>
+                                    <LogOut className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </TabsContent>
+                    </div>
+                </Tabs>
             </DialogContent>
         </Dialog>
     );
 }
+
+// Sub-components
+
+import { getAllUserMemories, SessionMemory } from '@/lib/session-memory';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Calendar, MessageSquare, History } from 'lucide-react';
+
+function HistoryView({ userId }: { userId: string | undefined }) {
+    const [memories, setMemories] = useState<SessionMemory[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [selectedMemory, setSelectedMemory] = useState<SessionMemory | null>(null);
+
+    useEffect(() => {
+        if (!userId) return;
+        setLoading(true);
+        getAllUserMemories(userId).then(m => {
+            setMemories(m);
+            setLoading(false);
+        });
+    }, [userId]);
+
+    if (loading) return <div className="text-white/50 animate-pulse">Loading history...</div>;
+
+    if (selectedMemory) {
+        return (
+            <div className="h-full flex flex-col animate-in slide-in-from-right-4">
+                <Button variant="ghost" onClick={() => setSelectedMemory(null)} className="self-start mb-4 text-white/50 hover:text-white pl-0">
+                    ← Back to List
+                </Button>
+                <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
+                    <h3 className="text-xl font-bold mb-2">Session Transcript</h3>
+                    <p className="text-sm text-white/50 mb-4">{new Date((selectedMemory.timestamp as any).toDate()).toLocaleDateString()}</p>
+                    <ScrollArea className="h-[400px]">
+                        <div className="space-y-4 pr-4">
+                            {/* In a real app we'd load the full transcript if not present. Assuming transcript is sparse here for now. */}
+                            {selectedMemory.keyInsights.length > 0 && (
+                                <div className="mb-6">
+                                    <h4 className="text-sm font-semibold text-purple-300 mb-2">Key Insights</h4>
+                                    <ul className="list-disc list-inside text-sm text-white/80 space-y-1">
+                                        {selectedMemory.keyInsights.map((k, i) => <li key={i}>{k}</li>)}
+                                    </ul>
+                                </div>
+                            )}
+                            <p className="text-white/40 italic">Full transcript viewing coming in next update...</p>
+                        </div>
+                    </ScrollArea>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className="grid gap-3">
+            {memories.length === 0 && <p className="text-white/50">No past sessions found.</p>}
+            {memories.map(m => (
+                <button
+                    key={m.sessionId}
+                    onClick={() => setSelectedMemory(m)}
+                    className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 transition-all text-left group"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300">
+                            <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-white group-hover:text-purple-300 transition-colors">
+                                {m.keyInsights[0] || "Therapy Session"}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-white/40">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date((m.timestamp as any).toDate()).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span>{Math.ceil(m.duration / 60)} mins</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                            <span className="text-white">→</span>
+                        </div>
+                    </div>
+                </button>
+            ))}
+        </div>
+    );
+}
+
 
 // Helper Components
 

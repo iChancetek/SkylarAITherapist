@@ -71,15 +71,70 @@ export const useUserPreferences = () => useContext(UserPreferencesContext);
 
 import { useAuthContext } from "@/lib/auth";
 
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+
 export const UserPreferencesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuthContext();
     const storageKey = user ? `iskylar_prefs_${user.uid}` : 'iskylar_prefs_guest';
 
+    // Local Persistence (IndexedDB)
     const [preferences, setPreferences, isHydrated] = usePersistedState<UserPreferences>(storageKey, DEFAULT_PREFERENCES);
 
-    // Check and reset daily limit if date changed
+    // Cloud Persistence (Firestore) - Sync on Mount / Auth Change
     useEffect(() => {
-        if (isHydrated && user) {
+        if (!user) return;
+
+        const userPrefsRef = doc(db, "users", user.uid, "settings", "preferences");
+
+        // 1. Initial Fetch / Listener
+        const unsubscribe = onSnapshot(userPrefsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const cloudPrefs = snapshot.data() as UserPreferences;
+                // Merge cloud prefs with local, trusting cloud for critical settings but respecting local recent usage?
+                // For simplicity: Cloud is source of truth if exists.
+                setPreferences(prev => {
+                    // Only update if different to avoid loops? 
+                    // JSON.stringify comparison is heavy but safe for this size object.
+                    if (JSON.stringify(prev) !== JSON.stringify(cloudPrefs)) {
+                        // Preserve dailyUsageMinutes relative to today if cloud is stale? 
+                        // Check date.
+                        const today = new Date().toISOString().split('T')[0];
+                        if (cloudPrefs.lastUsageDate !== today) {
+                            return { ...cloudPrefs, dailyUsageMinutes: 0, lastUsageDate: today };
+                        }
+                        return cloudPrefs;
+                    }
+                    return prev;
+                });
+            } else {
+                // If no cloud prefs, save current local (default) to cloud
+                setDoc(userPrefsRef, preferences, { merge: true });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [user, setPreferences]); // Intentionally not depending on 'preferences' here to avoid loop in listener
+
+    // 2. Save to Cloud on Change (Debounced)
+    useEffect(() => {
+        if (!user || !isHydrated) return;
+
+        const userPrefsRef = doc(db, "users", user.uid, "settings", "preferences");
+
+        // Simple debounce using timeout
+        const timer = setTimeout(() => {
+            setDoc(userPrefsRef, preferences, { merge: true })
+                .catch(err => console.error("Failed to sync prefs to cloud:", err));
+        }, 1000); // 1-second debounce
+
+        return () => clearTimeout(timer);
+    }, [preferences, user, isHydrated]);
+
+
+    // Check and reset daily limit if date changed (run locally as well)
+    useEffect(() => {
+        if (isHydrated) {
             const today = new Date().toISOString().split('T')[0];
             if (preferences.lastUsageDate !== today) {
                 setPreferences(prev => ({
@@ -89,7 +144,7 @@ export const UserPreferencesProvider = ({ children }: { children: React.ReactNod
                 }));
             }
         }
-    }, [isHydrated, preferences.lastUsageDate, setPreferences, user]);
+    }, [isHydrated, preferences.lastUsageDate, setPreferences]);
 
     const updatePreferences = useCallback((updates: Partial<UserPreferences>) => {
         setPreferences(prev => ({ ...prev, ...updates }));
@@ -121,10 +176,6 @@ export const UserPreferencesProvider = ({ children }: { children: React.ReactNod
             root.classList.add(preferences.theme);
         }
     }, [preferences.theme]);
-
-    // Don't render children until hydrated to avoid flash of wrong content/theme if possible, 
-    // or just accept it. For preferences, it's usually better to wait or show a loader if critical.
-    // But for simple flags, we can render.
 
     return (
         <UserPreferencesContext.Provider value={{

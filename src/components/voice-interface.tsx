@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/auth";
 import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import { AgentSelector } from "@/components/agent-selector";
+// import { AgentSelector } from "@/components/agent-selector"; // Removed old selector
+import { AgentSidebar } from "@/components/agent-sidebar";
 import { AgentId, AGENTS } from "@/ai/personas";
 
 // --- Type Definitions for Web Speech API & Legacy Audio Context ---
@@ -142,10 +143,21 @@ export default function VoiceInterface() {
       // usage tracking (round up to nearest minute)
       incrementUsage(Math.ceil(durationSec / 60));
 
+      const transcript = chatHistory.map(msg => {
+        const parts = msg.id.split('-');
+        const timestamp = parseInt(parts[parts.length - 1]) || Date.now();
+        return {
+          speaker: msg.speaker,
+          text: msg.text,
+          timestamp
+        };
+      });
+
       try {
         await saveSessionMemory(user.uid, {
           ...summary,
           duration: durationSec,
+          transcript
         });
       } catch (error) {
         console.error('Failed to save session memory:', error);
@@ -159,7 +171,7 @@ export default function VoiceInterface() {
 
     setShowChat(false);
     sessionStartTimeRef.current = 0;
-  }, [sessionState, user, clearSessionStarted, clearSessionState, setChatHistory, incrementUsage]);
+  }, [sessionState, user, clearSessionStarted, clearSessionState, setChatHistory, incrementUsage, chatHistory]);
 
   const playAudio = useCallback(async (audioDataUri: string, sessionShouldEnd: boolean = false) => {
     // Check preference
@@ -222,7 +234,8 @@ export default function VoiceInterface() {
         userInput,
         sessionState,
         language,
-        agentId: currentAgent
+        agentId: currentAgent,
+        userId: user?.uid
       });
 
       setSessionState(textResponse.updatedSessionState);
@@ -268,7 +281,8 @@ export default function VoiceInterface() {
         language, // Use preference language
         wasInterrupted: interrupted,
         interruptedDuring: interrupted ? currentResponse : undefined,
-        agentId: currentAgent
+        agentId: currentAgent,
+        userId: user?.uid
       });
       setSessionState(response.updatedSessionState);
 
@@ -304,7 +318,7 @@ export default function VoiceInterface() {
     } finally {
       setIsSending(false);
     }
-  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language, currentResponse]);
+  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language, currentResponse, user, currentAgent]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -385,7 +399,8 @@ export default function VoiceInterface() {
           userInput: "ISKYLAR_SESSION_START",
           sessionState: undefined,
           language,
-          agentId: currentAgent
+          agentId: currentAgent,
+          userId: user?.uid
         });
       } catch (error) {
         if (attempts > 0) {
@@ -426,7 +441,7 @@ export default function VoiceInterface() {
     } finally {
       setIsInitializing(false);
     }
-  }, [toast, playAudio, handleTextOnlyResponse, initializeAudioContext, language, isDailyLimitReached, preferences.transcriptionEnabled]);
+  }, [toast, playAudio, handleTextOnlyResponse, initializeAudioContext, language, isDailyLimitReached, preferences.transcriptionEnabled, user, currentAgent]);
 
   const handleMicClick = useCallback(() => {
     initializeAudioContext();
@@ -491,6 +506,15 @@ export default function VoiceInterface() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
+      {/* Agent Sidebar (Left) */}
+      <AgentSidebar
+        currentAgent={currentAgent}
+        onAgentChange={(id) => {
+          setCurrentAgent(id);
+          toast({ title: `Switched to ${AGENTS[id].name}`, description: AGENTS[id].role });
+        }}
+      />
+
       {/* Header (Simplified/Unchanged) */}
       <div className="relative z-10 flex flex-col w-full max-w-4xl mx-auto p-6 flex-grow justify-start">
         <header className="w-full flex flex-col items-center text-center pt-12 pb-8">
@@ -504,19 +528,6 @@ export default function VoiceInterface() {
           <h1 className="text-6xl font-bold tracking-tight mb-3 gradient-text">iSkylar</h1>
           <p className="text-lg text-white/80 font-medium tracking-wide">Your AI Voice Therapist</p>
         </header>
-
-        {/* Agent Selector */}
-        <div className="w-full flex justify-center mb-6">
-          <AgentSelector
-            currentAgent={currentAgent}
-            onAgentChange={(id) => {
-              setCurrentAgent(id);
-              // Optional: Play a tiny sound or greeting when switching?
-              // For now just state change is fast.
-              toast({ title: `Switched to ${AGENTS[id].name}`, description: AGENTS[id].role });
-            }}
-          />
-        </div>
       </div>
 
       {/* Main interaction area */}
