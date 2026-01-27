@@ -44,6 +44,7 @@ interface AuthContextType {
   isEmailVerified: boolean;
   sendVerification: () => Promise<void>;
   reloadUser: () => Promise<void>;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
