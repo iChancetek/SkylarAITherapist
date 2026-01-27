@@ -14,7 +14,7 @@ import { Settings, User, Monitor, Clock, Mic, Languages, Shield, LogOut, Check }
 
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
     const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
-    const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
+
     const { user, handleLogout } = useFirebaseAuthOps(); // Need access to logout
     const [open, setOpen] = useState(false);
 
