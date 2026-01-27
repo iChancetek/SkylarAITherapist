@@ -56,3 +56,25 @@ export async function getOpenAIKey(): Promise<string> {
         throw new Error(`Failed to load OpenAI Key: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
+
+let cachedTavilyKey: string | null = null;
+const TAVILY_SECRET_NAME = "TAVILY_API_KEY";
+
+export async function getTavilyKey(): Promise<string> {
+    if (process.env.TAVILY_API_KEY) return process.env.TAVILY_API_KEY;
+    if (cachedTavilyKey) return cachedTavilyKey;
+
+    try {
+        if (!client) client = new SecretManagerServiceClient();
+        const name = `projects/${PROJECT_ID}/secrets/${TAVILY_SECRET_NAME}/versions/latest`;
+        const [version] = await client.accessSecretVersion({ name });
+        const payload = version.payload?.data?.toString();
+        if (payload) {
+            cachedTavilyKey = payload;
+            return payload;
+        }
+    } catch (e) {
+        console.warn("[Secrets] Failed to fetch TAVILY_API_KEY", e);
+    }
+    return "";
+}

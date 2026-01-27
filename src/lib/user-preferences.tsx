@@ -68,11 +68,8 @@ const UserPreferencesContext = createContext<UserPreferencesContextType>({
 
 export const useUserPreferences = () => useContext(UserPreferencesContext);
 
+
 import { useAuthContext } from "@/lib/auth";
-
-// ... (imports)
-
-// ... (types and DEFAULT_PREFERENCES)
 
 export const UserPreferencesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuthContext();

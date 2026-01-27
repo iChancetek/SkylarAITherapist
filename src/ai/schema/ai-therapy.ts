@@ -7,6 +7,7 @@ export const iSkylarInputSchema = z.object({
   language: z.string().optional().default('en').describe('The language for the conversation (e.g., "en", "es").'),
   wasInterrupted: z.boolean().optional().describe('True if the user interrupted iSkylar mid-response.'),
   interruptedDuring: z.string().optional().describe('What iSkylar was saying when interrupted, for context.'),
+  agentId: z.enum(['skylar', 'chancellor', 'sydney', 'hailey', 'chris']).optional().default('skylar').describe('The specific agent persona to respond as.'),
 });
 export type iSkylarInput = z.infer<typeof iSkylarInputSchema>;
 

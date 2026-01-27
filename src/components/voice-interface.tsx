@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/auth";
 import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { AgentSelector } from "@/components/agent-selector";
+import { AgentId, AGENTS } from "@/ai/personas";
 
 // --- Type Definitions for Web Speech API & Legacy Audio Context ---
 
@@ -61,7 +63,7 @@ declare global {
 
 interface ChatMessage {
   id: string;
-  speaker: "user" | "iSkylar" | "system";
+  speaker: "user" | "system" | string;
   text: string;
   icon?: React.ElementType;
 }
@@ -77,6 +79,7 @@ export default function VoiceInterface() {
   const { user, userProfile } = useAuthContext();
 
   // Ephemeral State
+  const [currentAgent, setCurrentAgent] = useState<AgentId>('skylar');
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -214,16 +217,24 @@ export default function VoiceInterface() {
 
   const handleTextOnlyResponse = useCallback(async (userInput: string) => {
     try {
-      const textResponse = await getTextResponse({ userInput, sessionState, language });
+      // Pass the current agent to the text response flow
+      const textResponse = await getTextResponse({
+        userInput,
+        sessionState,
+        language,
+        agentId: currentAgent
+      });
+
       setSessionState(textResponse.updatedSessionState);
 
       const message: ChatMessage = {
-        id: `${textResponse.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
-        speaker: textResponse.isSafetyResponse ? "system" : "iSkylar",
+        id: `${textResponse.isSafetyResponse ? 'safety' : currentAgent}-${Date.now()}`,
+        speaker: textResponse.isSafetyResponse ? "system" : AGENTS[currentAgent].name as any,
         text: textResponse.responseText,
         icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
       };
       setChatHistory(prev => [...prev, message]);
+
 
       if (textResponse.sessionShouldEnd) {
         await handleSessionEnd();
@@ -256,13 +267,14 @@ export default function VoiceInterface() {
         sessionState,
         language, // Use preference language
         wasInterrupted: interrupted,
-        interruptedDuring: interrupted ? currentResponse : undefined
+        interruptedDuring: interrupted ? currentResponse : undefined,
+        agentId: currentAgent
       });
       setSessionState(response.updatedSessionState);
 
       const message: ChatMessage = {
-        id: `${response.isSafetyResponse ? 'safety' : 'iskylar'}-${Date.now()}`,
-        speaker: response.isSafetyResponse ? "system" : "iSkylar",
+        id: `${response.isSafetyResponse ? 'safety' : currentAgent}-${Date.now()}`,
+        speaker: response.isSafetyResponse ? "system" : AGENTS[currentAgent].name as any, // Cast to match ChatMessage string literal or update type
         text: response.responseText,
         icon: response.isSafetyResponse ? AlertTriangle : Brain
       };
@@ -369,7 +381,12 @@ export default function VoiceInterface() {
 
     const startSessionWithRetry = async (attempts = 1): Promise<any> => {
       try {
-        return await getSpokenResponse({ userInput: "ISKYLAR_SESSION_START", sessionState: undefined, language });
+        return await getSpokenResponse({
+          userInput: "ISKYLAR_SESSION_START",
+          sessionState: undefined,
+          language,
+          agentId: currentAgent
+        });
       } catch (error) {
         if (attempts > 0) {
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -384,8 +401,8 @@ export default function VoiceInterface() {
       setSessionState(response.updatedSessionState);
 
       const greetingMessage: ChatMessage = {
-        id: `iskylar-greeting-${Date.now()}`,
-        speaker: "iSkylar",
+        id: `${currentAgent}-greeting-${Date.now()}`,
+        speaker: AGENTS[currentAgent].name,
         text: response.responseText,
         icon: Brain
       };
@@ -487,6 +504,19 @@ export default function VoiceInterface() {
           <h1 className="text-6xl font-bold tracking-tight mb-3 gradient-text">iSkylar</h1>
           <p className="text-lg text-white/80 font-medium tracking-wide">Your AI Voice Therapist</p>
         </header>
+
+        {/* Agent Selector */}
+        <div className="w-full flex justify-center mb-6">
+          <AgentSelector
+            currentAgent={currentAgent}
+            onAgentChange={(id) => {
+              setCurrentAgent(id);
+              // Optional: Play a tiny sound or greeting when switching?
+              // For now just state change is fast.
+              toast({ title: `Switched to ${AGENTS[id].name}`, description: AGENTS[id].role });
+            }}
+          />
+        </div>
       </div>
 
       {/* Main interaction area */}
