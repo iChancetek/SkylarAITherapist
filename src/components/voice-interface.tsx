@@ -539,12 +539,18 @@ export default function VoiceInterface() {
                  Let's keep the ScrollArea but maybe make it less intrusive or just the same overlay. 
                  The user liked "Keep everything". So I'll keep the overlay structure but ensure it obeys settings.
              */}
-          <div className="pointer-events-auto bg-black/40 backdrop-blur-md p-4 rounded-xl max-w-lg w-full max-h-48 overflow-y-auto mb-4 border border-white/10" ref={chatHistoryRef}>
-            <div className="space-y-2">
-              {chatHistory.slice(-3).map((msg) => ( // Only show last few messages for "Live Transcription" feel to keep it minimal?
-                <div key={msg.id} className={cn("text-sm", msg.speaker === 'iSkylar' ? "text-purple-200" : "text-white/80")}>
-                  <span className="font-bold opacity-50 text-xs uppercase mr-2">{msg.speaker}</span>
-                  {msg.text}
+          <div className="pointer-events-auto bg-black/60 backdrop-blur-md p-6 rounded-2xl max-w-3xl w-full h-[60vh] overflow-y-auto mb-20 border border-white/10 shadow-2xl" ref={chatHistoryRef}>
+            <div className="space-y-4">
+              {chatHistory.map((msg) => (
+                <div key={msg.id} className={cn("text-base leading-relaxed animate-in fade-in slide-in-from-bottom-2", msg.speaker === 'iSkylar' ? "text-purple-100" : "text-white/80 text-right")}>
+                  <div className="flex items-center gap-2 mb-1 opacity-50 text-xs uppercase font-bold tracking-wider">
+                    {msg.speaker === 'iSkylar' && <Brain className="w-3 h-3" />}
+                    {msg.speaker === 'user' && <User className="w-3 h-3 ml-auto" />}
+                    {msg.speaker === 'user' ? null : <span>{msg.speaker}</span>}
+                  </div>
+                  <div className={cn("p-3 rounded-2xl inline-block", msg.speaker === 'user' ? "bg-white/10 rounded-tr-sm" : "bg-purple-500/10 rounded-tl-sm")}>
+                    {msg.text}
+                  </div>
                 </div>
               ))}
               {isSending && <div className="text-xs text-white/40 italic">Thinking...</div>}

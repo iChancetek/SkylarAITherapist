@@ -14,13 +14,15 @@ import { Settings, User, Monitor, Clock, Mic, Languages, Shield, LogOut, Check }
 
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
     const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
+    const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
     const { user, handleLogout } = useFirebaseAuthOps(); // Need access to logout
+    const [open, setOpen] = useState(false);
 
     // Local state for immediate feedback inside dialog if needed, 
     // but using global state directly for "Changes apply instantly" requirement.
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
@@ -218,7 +220,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
 
                 <DialogFooter className="p-4 border-t border-white/10 bg-white/5 sm:justify-between items-center">
                     <span className="text-xs text-white/30 hidden sm:block">v1.2.0 • Secure Session</span>
-                    <Button onClick={() => { /* close handled by trigger */ }} className="bg-white text-black hover:bg-white/90">
+                    <Button onClick={() => setOpen(false)} className="bg-white text-black hover:bg-white/90 shadow-md transform hover:scale-105 transition-all">
                         Done
                     </Button>
                 </DialogFooter>
