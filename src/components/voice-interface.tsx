@@ -283,8 +283,13 @@ export default function VoiceInterface() {
         wasInterrupted: interrupted,
         interruptedDuring: interrupted ? currentResponse : undefined,
         agentId: currentAgent,
+        agentId: currentAgent,
         userId: user?.uid
       });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
       setSessionState(response.updatedSessionState);
 
       const message: ChatMessage = {
@@ -414,6 +419,11 @@ export default function VoiceInterface() {
 
     try {
       const response = await startSessionWithRetry();
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
       setSessionState(response.updatedSessionState);
 
       const greetingMessage: ChatMessage = {

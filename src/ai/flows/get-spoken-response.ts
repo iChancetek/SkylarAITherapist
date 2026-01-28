@@ -54,8 +54,15 @@ export async function getSpokenResponse(input: SpokenResponseInput): Promise<Spo
       updatedSessionState: aiResult.updatedSessionState,
       sessionShouldEnd: aiResult.sessionShouldEnd || false,
     };
-  } catch (error) {
-    console.error("SERVER ERROR in getSpokenResponse:", error);
-    throw error;
-  }
+  };
+} catch (error: any) {
+  console.error("SERVER ERROR in getSpokenResponse:", error);
+  // Return the specific error message to the client to bypass Next.js production masking
+  return {
+    isSafetyResponse: false,
+    responseText: "",
+    audioDataUri: "",
+    error: error.message || "Unknown server error",
+  };
+}
 }
