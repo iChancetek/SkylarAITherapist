@@ -25,7 +25,7 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
     return (
         <div
             className={cn(
-                "fixed left-4 top-1/2 -translate-y-1/2 z-[100] flex flex-col transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                "fixed left-4 top-1/2 -translate-y-1/2 z-[100] flex flex-col transition-all duration-700 ease-out",
                 isHovered ? "w-80" : "w-12 h-96" // Initial "sliver" state
             )}
             onMouseEnter={() => setIsHovered(true)}
@@ -33,7 +33,7 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
         >
             {/* The Floating Glass Blade */}
             <div className={cn(
-                "relative h-full flex flex-col overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                "relative h-full flex flex-col overflow-hidden transition-all duration-700 ease-out",
                 // Glassmorphism Base
                 "backdrop-blur-3xl bg-black/40 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
                 // Shape & Size
