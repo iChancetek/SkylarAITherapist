@@ -16,8 +16,18 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Initialize Storage
-import { getStorage } from "firebase/storage";
-const storage = getStorage(app);
+// Initialize Storage safely
+import { getStorage, FirebaseStorage } from "firebase/storage";
+
+let storage: FirebaseStorage;
+
+try {
+  storage = getStorage(app);
+} catch (err) {
+  console.error("Firebase Storage initialization failed:", err);
+  // @ts-ignore - Providing a dummy object or null might be safer, 
+  // but for now we let it be undefined and rely on consumers to check or fail later 
+  // rather than crashing at module load.
+}
 
 export { app, auth, db, storage };
