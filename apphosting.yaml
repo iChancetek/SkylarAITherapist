@@ -3,6 +3,10 @@
 
 runConfig:
   maxInstances: 1
-# Secrets are now managed at runtime via Google Cloud Secret Manager SDK
-# to bypass build-time IAM permission issues.
-# See src/lib/secrets.ts
+  env:
+    - variable: OPENAI_API_KEY
+      secret: OPENAI_API_KEY
+    - variable: TAVILY_API_KEY
+      secret: TAVILY_API_KEY
+# Secrets are mapped to env vars to ensure process.env.OPENAI_API_KEY is populated.
+# src/lib/secrets.ts will check process.env first.
