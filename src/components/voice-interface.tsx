@@ -582,12 +582,50 @@ export default function VoiceInterface() {
                   <span className="relative z-10">⚡ Interrupt</span>
                 </Button>
               )}
-              <div className="relative">
-                {(isListening || isSpeaking) && (
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 opacity-50 blur-2xl animate-pulse scale-150"></div>
-                )}
-                <Button onClick={handleMicClick} variant="ghost" size="icon" className={cn("relative h-32 w-32 rounded-full transition-all duration-500 border-4", isSpeaking ? "glass-dark border-purple-400/50" : isListening ? "glass-dark border-blue-400/50" : "glass-dark border-white/20")}>
-                  <Mic className={cn("relative z-10 transition-all duration-300", isListening ? "w-16 h-16 text-blue-300" : isSpeaking ? "w-16 h-16 text-purple-300" : "w-14 h-14 text-white/70")} />
+              {/* Controls */}
+              <div className="flex items-center gap-6 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-12 w-12 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md transition-all duration-300"
+                  onClick={() => setIsTextMode(!isTextMode)}
+                >
+                  <Keyboard className="h-6 w-6" />
+                </Button>
+
+                <div className="relative group">
+                  <div
+                    className={cn(
+                      "absolute -inset-1 rounded-full blur opacity-40 transition-all duration-1000 group-hover:opacity-75",
+                      isSpeaking ? "bg-primary animate-pulse" : "bg-white"
+                    )}
+                  />
+                  <Button
+                    size="lg"
+                    className={cn(
+                      "relative h-20 w-20 rounded-full shadow-xl transition-all duration-300 border-4 border-white/10",
+                      isSpeaking
+                        ? "bg-amber-500 hover:bg-amber-600 animate-pulse"
+                        : "bg-gradient-to-tr from-indigo-500 to-purple-600 hover:scale-105"
+                    )}
+                    onClick={handleMicClick}
+                  >
+                    {isSpeaking ? (
+                      <Square className="h-8 w-8 text-white fill-current" />
+                    ) : (
+                      <Mic className="h-8 w-8 text-white" />
+                    )}
+                  </Button>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-12 w-12 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-100 backdrop-blur-md transition-all duration-300"
+                  onClick={handleEndSession}
+                  title="End Session"
+                >
+                  <X className="h-6 w-6" />
                 </Button>
               </div>
               <div className="glass-dark px-6 py-3 rounded-full">
