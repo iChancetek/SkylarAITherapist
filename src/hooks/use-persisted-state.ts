@@ -7,6 +7,8 @@ import { get, set, del } from 'idb-keyval';
  */
 export function usePersistedState<T>(key: string, initialValue: T) {
     const [state, setState] = useState<T>(initialValue);
+    const [isHydrated, setIsHydrated] = useState(false);
+    const isFirstRender = useRef(true);
     // Track which key the current state belongs to, to prevent cross-contamination during key switches
     const loadedKey = useRef<string | null>(null);
 
