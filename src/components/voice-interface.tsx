@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/auth";
 import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-// import { AgentSelector } from "@/components/agent-selector"; // Removed old selector
+
 import { AgentSidebar } from "@/components/agent-sidebar";
 import { UserMenu } from "@/components/user-menu";
 import { AgentId, AGENTS } from "@/ai/personas";

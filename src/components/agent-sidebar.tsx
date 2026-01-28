@@ -25,33 +25,36 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
     return (
         <div
             className={cn(
-                "fixed left-0 top-1/2 -translate-y-1/2 z-[100] flex flex-col transition-all duration-500 ease-out", // Increased z-index to 100
-                isHovered ? "w-72" : "w-6" // Increased collapsed width trigger from w-2 to w-6
+                "fixed left-4 top-1/2 -translate-y-1/2 z-[100] flex flex-col transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                isHovered ? "w-80" : "w-12 h-96" // Initial "sliver" state
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* The Trigger Area (Invisible or minimal) */}
+            {/* The Floating Glass Blade */}
             <div className={cn(
-                "absolute left-0 top-0 bottom-0 w-full cursor-pointer transition-opacity",
-                isHovered ? "opacity-0" : "opacity-0 hover:bg-white/5" // kept invisible but check if user wants visual cue? "invisible" was requested.
-            )} />
-
-            {/* The Sidebar Content */}
-            <div className={cn(
-                "h-screen bg-background/80 backdrop-blur-xl border-r border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 transform origin-left z-[100]",
-                isHovered ? "translate-x-0 opacity-100 w-72" : "-translate-x-full opacity-0 w-0"
+                "relative h-full flex flex-col overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                // Glassmorphism Base
+                "backdrop-blur-3xl bg-black/40 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+                // Shape & Size
+                isHovered ? "rounded-[2rem] w-full max-h-[80vh]" : "rounded-full w-2 max-h-48 my-auto opacity-50 hover:opacity-100 hover:w-3" // Collapsed is just a tiny indicator
             )}>
-                <div className="h-full overflow-y-auto p-6 flex flex-col space-y-6">
-                    <div className="text-center border-b border-white/10 pb-4">
-                        <h3 className="text-lg font-bold text-foreground tracking-wide flex items-center justify-center gap-2">
-                            <Sparkles className="w-4 h-4 text-purple-500" />
-                            Select Agent
+
+                {/* Expanded Content */}
+                <div className={cn(
+                    "flex flex-col h-full w-80 p-6 space-y-8 transition-opacity duration-500 delay-100",
+                    isHovered ? "opacity-100" : "opacity-0 pointer-events-none absolute"
+                )}>
+                    {/* Header */}
+                    <div className="text-center space-y-1 pt-2">
+                        <h3 className="text-sm font-medium text-white/90 tracking-[0.2em] uppercase flex items-center justify-center gap-2">
+                            <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />
+                            Companion
                         </h3>
-                        <p className="text-xs text-muted-foreground">Choose your companion</p>
                     </div>
 
-                    <div className="flex flex-col gap-3">
+                    {/* Agent List */}
+                    <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                         {(Object.entries(AGENTS) as [AgentId, typeof AGENTS[AgentId]][]).map(([id, agent]) => {
                             const Icon = AGENT_ICONS[id] || User;
                             const isSelected = currentAgent === id;
@@ -61,38 +64,56 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
                                     key={id}
                                     onClick={() => onAgentChange(id)}
                                     className={cn(
-                                        "relative flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group text-left border",
+                                        "group relative flex items-center gap-4 p-4 rounded-2xl transition-all duration-500 text-left overflow-hidden",
                                         isSelected
-                                            ? "bg-primary/10 border-primary/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
-                                            : "hover:bg-accent/50 border-transparent hover:border-white/10"
+                                            ? "bg-white/5 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)] border border-white/10"
+                                            : "hover:bg-white/5 border border-transparent"
                                     )}
                                 >
+                                    {/* Active Glow Background */}
+                                    {isSelected && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 opacity-50" />
+                                    )}
+
+                                    {/* Icon Container */}
                                     <div className={cn(
-                                        "w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
+                                        "relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
                                         isSelected
-                                            ? "bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-lg"
-                                            : "bg-muted text-muted-foreground group-hover:text-foreground"
+                                            ? "bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-110"
+                                            : "bg-white/5 text-white/40 group-hover:text-white/80 group-hover:scale-105"
                                     )}>
-                                        <Icon className="w-5 h-5" />
+                                        <Icon className="w-5 h-5 relative z-10" />
                                     </div>
 
-                                    <div className="flex-1">
-                                        <p className={cn("font-medium text-sm transition-colors", isSelected ? "text-primary" : "text-foreground/80 group-hover:text-foreground")}>
+                                    {/* Text Info */}
+                                    <div className="flex-1 relative z-10">
+                                        <p className={cn(
+                                            "font-medium text-sm tracking-wide transition-colors duration-300",
+                                            isSelected ? "text-white" : "text-white/60 group-hover:text-white"
+                                        )}>
                                             {agent.name}
                                         </p>
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                                        <p className="text-[10px] text-white/30 uppercase tracking-widest font-semibold mt-0.5">
                                             {agent.role}
                                         </p>
                                     </div>
 
+                                    {/* Active Dot */}
                                     {isSelected && (
-                                        <div className="absolute right-3 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)] animate-pulse" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] animate-pulse" />
                                     )}
                                 </button>
                             );
                         })}
                     </div>
                 </div>
+
+                {/* Collapsed State Visual Cue (Vertical Pill) */}
+                {!isHovered && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-50">
+                        <div className="w-1 h-12 bg-white/20 rounded-full" />
+                    </div>
+                )}
             </div>
         </div>
     );
