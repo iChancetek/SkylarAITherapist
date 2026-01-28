@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserPreferences } from "@/lib/user-preferences";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
-import { Settings, Mic, User, Brain, AlertTriangle, Loader2, MessageSquare, X, RefreshCw } from "lucide-react";
+import { Settings, Mic, User, Brain, AlertTriangle, Loader2, MessageSquare, X, RefreshCw, Keyboard, Square, Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { getSpokenResponse } from "@/ai/flows/get-spoken-response";
 import { getTextResponse } from "@/ai/flows/get-text-response";
 import { useToast } from "@/hooks/use-toast";
