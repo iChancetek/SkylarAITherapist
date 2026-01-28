@@ -17,6 +17,7 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
     const { preferences, updatePreferences, remainingMinutes } = useUserPreferences();
     const { user, handleLogout } = useFirebaseAuthOps();
     const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const handleResumeWrapper = (session: SessionMemory) => {
         if (onResumeSession) {
