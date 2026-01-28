@@ -16,6 +16,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUserPreferences } from "@/lib/user-preferences";
+import { useAuthContext, useFirebaseAuth } from "@/lib/auth";
+import { useTheme } from "next-themes";
+import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Moon, Sun, Languages, Lock, LogOut } from "lucide-react";
 
 export function UserMenu() {
   const { user, userProfile, updateUserProfile } = useAuthContext();
