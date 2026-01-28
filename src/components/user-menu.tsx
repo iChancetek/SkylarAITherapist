@@ -15,25 +15,11 @@ import {
   DropdownMenuRadioItem
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuthContext, useFirebaseAuth } from "@/lib/auth";
-import { LogOut, Moon, Sun, Lock, Languages } from "lucide-react";
-import { useTheme } from "next-themes";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import React from "react";
-
-const languages = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'zh', name: 'Mandarin' },
-  { code: 'sw', name: 'Swahili' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'he', name: 'Hebrew' },
-];
+import { useUserPreferences } from "@/lib/user-preferences";
 
 export function UserMenu() {
   const { user, userProfile, updateUserProfile } = useAuthContext();
+  const { preferences } = useUserPreferences(); // Hook into preferences
   const { handleLogout, handlePasswordReset } = useFirebaseAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
@@ -65,8 +51,9 @@ export function UserMenu() {
     });
   }
 
-  const displayName = userProfile?.fullName || user.displayName || user.email;
-  const avatarUrl = userProfile?.profileImage || user.photoURL;
+  // Prioritize preferences.userName (immediate local state) over auth profile
+  const displayName = preferences.userName || userProfile?.fullName || user.displayName || user.email;
+  const avatarUrl = preferences.profileImage || userProfile?.profileImage || user.photoURL;
 
   return (
     <div className="">
@@ -77,7 +64,7 @@ export function UserMenu() {
               <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? "User"} />
               <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
             </Avatar>
-            <span className="hidden text-sm font-medium md:block">{displayName}</span>
+            <span className="text-sm font-medium">{displayName}</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end">

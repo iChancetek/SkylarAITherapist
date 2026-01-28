@@ -98,6 +98,64 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
                             </header>
 
                             <div className="grid gap-6">
+                                {/* Profile Picture Section */}
+                                <div className="flex flex-col items-center space-y-4">
+                                    <div className="relative group">
+                                        <div className={`w-24 h-24 rounded-full overflow-hidden border-2 border-dashed border-white/20 flex items-center justify-center group-hover:border-purple-500 transition-colors ${loading ? 'opacity-50' : ''}`}>
+                                            {preferences.profileImage || user?.photoURL ? (
+                                                <img src={preferences.profileImage || user?.photoURL || ''} alt="Profile" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <User className="w-10 h-10 text-white/30" />
+                                            )}
+                                        </div>
+                                        <label htmlFor="profile-upload" className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full">
+                                            <span className="text-xs font-medium text-white">Change</span>
+                                        </label>
+                                        <input
+                                            id="profile-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file || !user) return;
+
+                                                try {
+                                                    setLoading(true);
+                                                    // Dynamic import to avoid SSR issues if any, implies firebase usage
+                                                    const { storage } = await import('@/lib/firebase');
+                                                    const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+                                                    const { updateProfile } = await import('firebase/auth');
+
+                                                    const storageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${file.name}`);
+                                                    await uploadBytes(storageRef, file);
+                                                    const url = await getDownloadURL(storageRef);
+
+                                                    // Update Auth profile
+                                                    await updateProfile(user, { photoURL: url });
+
+                                                    // Update Preferences state immediately for UI response
+                                                    // We add 'profileImage' to user preferences roughly just to trigger re-renders if needed, 
+                                                    // but primarily we rely on Auth Update. 
+                                                    // Actually, we should store it in preferences to be consistent with our new UserMenu logic?
+                                                    // UserMenu looks at: preferences.userName || userProfile.fullName ...
+                                                    // UserMenu avatar: userProfile?.profileImage || user.photoURL.
+                                                    // It DOES NOT look at preferences.profileImage currently.
+                                                    // I should add it to updatePreferences too?
+                                                    updatePreferences({ profileImage: url } as any); // Casting since profileImage might not be in interface yet
+
+                                                } catch (err) {
+                                                    console.error("Upload failed", err);
+                                                    // toast({ title: "Upload Failed", variant: "destructive" })
+                                                } finally {
+                                                    setLoading(false);
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-white/40">Tap to update photo</p>
+                                </div>
+
                                 <section className="space-y-4">
                                     <Label>Display Name</Label>
                                     <input

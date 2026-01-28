@@ -10,6 +10,7 @@ export type SessionDuration = 10 | 15 | 20;
 export interface UserPreferences {
     // Account
     userName: string;
+    profileImage?: string; // New: allow storing avatar URL in prefs for faster local read
 
     // Appearance
     theme: ThemeOption;
