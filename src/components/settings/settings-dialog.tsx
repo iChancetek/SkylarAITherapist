@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Component, ErrorInfo, ReactNode } from "react";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -208,7 +208,9 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
                                 <p className="text-white/50">Review your past sessions and what iSkylar remembers.</p>
                             </header>
 
-                            <HistoryView userId={user?.uid} />
+                            <ErrorBoundary>
+                                <HistoryView userId={user?.uid} />
+                            </ErrorBoundary>
                         </TabsContent>
 
                         {/* Privacy Tab */}
@@ -237,8 +239,38 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
 }
 
 // Sub-components
-
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
+    constructor(props: { children: ReactNode }) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        console.error("HistoryView crashed:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200">
+                    <h3 className="font-bold mb-2">Something went wrong.</h3>
+                    <p className="text-sm opacity-80 mb-4">We couldn't load your history. Please try again later.</p>
+                    <div className="p-2 bg-black/30 rounded text-xs font-mono overflow-auto max-h-32">
+                        {this.state.error?.toString()}
+                    </div>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
 
 function HistoryView({ userId }: { userId: string | undefined }) {
     const [memories, setMemories] = useState<SessionMemory[]>([]);
