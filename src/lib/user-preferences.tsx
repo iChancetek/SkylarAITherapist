@@ -4,6 +4,15 @@ import React, { createContext, useContext, useEffect, useCallback } from "react"
 import { usePersistedState } from "@/hooks/use-persisted-state";
 
 export type LanguageCode = 'en' | 'es' | 'zh' | 'fr' | 'ar';
+
+export const languages: { code: string; name: string }[] = [
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Español' },
+    { code: 'zh', name: 'Mandarin' },
+    { code: 'fr', name: 'Français' },
+    { code: 'ar', name: 'Arabic' },
+];
+
 export type ThemeOption = 'light' | 'dark' | 'system';
 export type SessionDuration = 10 | 15 | 20;
 
