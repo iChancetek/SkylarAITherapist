@@ -39,13 +39,16 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
 
             {/* The Sidebar Content */}
             <div className={cn(
-                "h-screen bg-background/90 backdrop-blur-2xl border-r border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 transform origin-left",
-                isHovered ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+                "h-screen bg-background/80 backdrop-blur-xl border-r border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 transform origin-left z-[100]",
+                isHovered ? "translate-x-0 opacity-100 w-72" : "-translate-x-full opacity-0 w-0"
             )}>
                 <div className="h-full overflow-y-auto p-6 flex flex-col space-y-6">
                     <div className="text-center border-b border-white/10 pb-4">
-                        <h3 className="text-lg font-bold text-white tracking-wide">Select Agent</h3>
-                        <p className="text-xs text-white/40">Choose your companion</p>
+                        <h3 className="text-lg font-bold text-foreground tracking-wide flex items-center justify-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-500" />
+                            Select Agent
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Choose your companion</p>
                     </div>
 
                     <div className="flex flex-col gap-3">
@@ -58,30 +61,32 @@ export function AgentSidebar({ currentAgent, onAgentChange }: AgentSidebarProps)
                                     key={id}
                                     onClick={() => onAgentChange(id)}
                                     className={cn(
-                                        "relative flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group text-left",
+                                        "relative flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group text-left border",
                                         isSelected
-                                            ? "bg-white/10 border border-white/20 shadow-lg"
-                                            : "hover:bg-white/5 border border-transparent"
+                                            ? "bg-primary/10 border-primary/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                                            : "hover:bg-accent/50 border-transparent hover:border-white/10"
                                     )}
                                 >
                                     <div className={cn(
                                         "w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
-                                        isSelected ? "bg-gradient-to-br from-purple-500 to-blue-500 text-white" : "bg-white/5 text-white/50"
+                                        isSelected
+                                            ? "bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-lg"
+                                            : "bg-muted text-muted-foreground group-hover:text-foreground"
                                     )}>
                                         <Icon className="w-5 h-5" />
                                     </div>
 
                                     <div className="flex-1">
-                                        <p className={cn("font-medium text-sm transition-colors", isSelected ? "text-white" : "text-white/70 group-hover:text-white")}>
+                                        <p className={cn("font-medium text-sm transition-colors", isSelected ? "text-primary" : "text-foreground/80 group-hover:text-foreground")}>
                                             {agent.name}
                                         </p>
-                                        <p className="text-[10px] text-white/40 uppercase tracking-wider font-bold">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
                                             {agent.role}
                                         </p>
                                     </div>
 
                                     {isSelected && (
-                                        <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.5)]" />
+                                        <div className="absolute right-3 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)] animate-pulse" />
                                     )}
                                 </button>
                             );

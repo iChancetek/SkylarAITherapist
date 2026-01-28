@@ -38,8 +38,13 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
                 <div className="absolute top-4 right-4 z-50">
                     <Button
                         onClick={async () => {
-                            await useUserPreferences().savePreferences();
-                            setOpen(false);
+                            try {
+                                await useUserPreferences().savePreferences();
+                            } catch (e) {
+                                console.error("Save failed", e);
+                            } finally {
+                                setOpen(false);
+                            }
                         }}
                         className="rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/5 backdrop-blur-md"
                     >
@@ -245,17 +250,31 @@ function HistoryView({ userId }: { userId: string | undefined }) {
     useEffect(() => {
         if (!userId) return;
         setLoading(true);
-        getAllUserMemories(userId).then(m => {
-            setMemories(m);
-            setLoading(false);
-        });
+        getAllUserMemories(userId)
+            .then(m => {
+                setMemories(m);
+            })
+            .catch(err => {
+                console.error("Failed to load memories", err);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, [userId]);
 
     const formatDate = (ts: any) => {
-        if (!ts) return 'Unknown Date';
-        if (ts.toDate) return ts.toDate().toLocaleDateString();
-        if (ts instanceof Date) return ts.toLocaleDateString();
-        return 'Unknown Date';
+        try {
+            if (!ts) return 'Unknown Date';
+            if (typeof ts === 'string') return new Date(ts).toLocaleDateString();
+            if (ts.toDate && typeof ts.toDate === 'function') return ts.toDate().toLocaleDateString();
+            if (ts instanceof Date) return ts.toLocaleDateString();
+            // Fallback for seconds/nanoseconds object from Firestore if not automatically converted
+            if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleDateString();
+            return 'Unknown Date';
+        } catch (e) {
+            console.error("Date formatting error", e);
+            return 'Error';
+        }
     };
 
     if (loading) return (
