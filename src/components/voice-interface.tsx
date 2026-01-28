@@ -496,14 +496,24 @@ export default function VoiceInterface() {
   }, []);
 
   const handleEndSession = useCallback(() => {
-    stopSpeaking();
-    stopListening();
+    // Stop speaking
+    if (sourceNodeRef.current) {
+      try { sourceNodeRef.current.stop(); } catch (e) { }
+    }
+    setIsSpeaking(false);
+
+    // Stop listening
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+    setIsListening(false);
+
     setSessionStarted(false);
     // Ensure we don't auto-start again immediately
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
     }
-  }, [stopSpeaking, stopListening]);
+  }, [setIsSpeaking, setIsListening]);
 
   const getStatusText = () => {
     if (!sessionStarted && !isInitializing) return "Click 'Start Session' to begin.";
