@@ -495,6 +495,16 @@ export default function VoiceInterface() {
     };
   }, []);
 
+  const handleEndSession = useCallback(() => {
+    stopSpeaking();
+    stopListening();
+    setSessionStarted(false);
+    // Ensure we don't auto-start again immediately
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+  }, [stopSpeaking, stopListening]);
+
   const getStatusText = () => {
     if (!sessionStarted && !isInitializing) return "Click 'Start Session' to begin.";
     if (isInitializing) return "Contacting iSkylar...";
