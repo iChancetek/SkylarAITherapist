@@ -436,8 +436,13 @@ export default function VoiceInterface() {
       }
 
       await playAudio(response.audioDataUri, response.sessionShouldEnd);
-    } catch (error) {
-      // ... error handling
+    } catch (error: any) {
+      console.error("Failed to start session:", error);
+      toast({
+        title: "Connection Error",
+        description: error.message || "Failed to start session. Please try again.",
+        variant: "destructive"
+      });
       setSessionStarted(false);
     } finally {
       setIsInitializing(false);
