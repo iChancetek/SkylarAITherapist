@@ -80,7 +80,7 @@ ${memoryContext}`;
     turnCount++;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2-instant", // The latest Jan 2026 conversational flagship
+      model: "gpt-4o", // Ensuring reliable access
       messages: messages,
       tools: tools,
       tool_choice: "auto",
