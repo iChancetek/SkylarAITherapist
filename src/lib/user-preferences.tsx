@@ -50,7 +50,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     dailyUsageMinutes: 0,
     lastUsageDate: new Date().toISOString().split('T')[0],
     voiceEnabled: true,
-    transcriptionEnabled: true,
+    transcriptionEnabled: false,
     autoScroll: true,
     voiceLanguage: 'en',
     textLanguage: 'en',

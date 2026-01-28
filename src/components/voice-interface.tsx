@@ -636,33 +636,54 @@ export default function VoiceInterface() {
         </footer>
       </div>
 
-      {/* Chat / Transcription Overlay */}
-      {/* Controlled by preferences.transcriptionEnabled now, not just separate visible toggle */}
-      {sessionStarted && preferences.transcriptionEnabled && (
-        <div className="fixed inset-x-0 bottom-32 z-20 flex justify-center pointer-events-none">
-          {/* Subtitle style transcription or full chat? 
-                 Prompt says "Live transcription ... scrolls automatically". 
-                 The existing full-screen chat overlay might be too heavy? 
-                 "The primary conversation screen must contain only... Live transcription" 
-                 Let's keep the ScrollArea but maybe make it less intrusive or just the same overlay. 
-                 The user liked "Keep everything". So I'll keep the overlay structure but ensure it obeys settings.
-             */}
-          <div className="pointer-events-auto bg-black/60 backdrop-blur-md p-6 rounded-2xl max-w-3xl w-full h-[60vh] overflow-y-auto mb-20 border border-white/10 shadow-2xl" ref={chatHistoryRef}>
-            <div className="space-y-4">
-              {chatHistory.map((msg) => (
-                <div key={msg.id} className={cn("text-base leading-relaxed animate-in fade-in slide-in-from-bottom-2", msg.speaker === 'iSkylar' ? "text-purple-100" : "text-white/80 text-right")}>
-                  <div className="flex items-center gap-2 mb-1 opacity-50 text-xs uppercase font-bold tracking-wider">
-                    {msg.speaker === 'iSkylar' && <Brain className="w-3 h-3" />}
-                    {msg.speaker === 'user' && <User className="w-3 h-3 ml-auto" />}
-                    {msg.speaker === 'user' ? null : <span>{msg.speaker}</span>}
-                  </div>
-                  <div className={cn("p-3 rounded-2xl inline-block", msg.speaker === 'user' ? "bg-white/10 rounded-tr-sm" : "bg-purple-500/10 rounded-tl-sm")}>
-                    {msg.text}
+      {/* Chat / Transcription History (Embedded below interface) */}
+      {(preferences.transcriptionEnabled || (!sessionStarted && chatHistory.length > 0)) && (
+        <div className="w-full max-w-3xl mx-auto px-6 pb-20 animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-black/40 backdrop-blur-sm rounded-3xl p-6 border border-white/5 shadow-2xl space-y-6" ref={chatHistoryRef}>
+            {chatHistory.length === 0 && (
+              <div className="text-center text-white/40 italic py-8">
+                Conversation transcript will appear here...
+              </div>
+            )}
+            {chatHistory.map((msg) => (
+              <div key={msg.id} className={cn("flex flex-col gap-2", msg.speaker === 'user' ? "items-end" : "items-start")}>
+                <div className="flex items-center gap-2 opacity-60 text-xs uppercase font-bold tracking-wider text-white/70 px-1">
+                  {msg.speaker === 'iSkylar' ? (
+                    <>
+                      <Brain className="w-3 h-3 text-purple-400" />
+                      <span>iSkylar</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>You</span>
+                      <User className="w-3 h-3 text-blue-400" />
+                    </>
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    "px-5 py-3 text-base leading-relaxed max-w-[85%]",
+                    msg.speaker === 'user'
+                      ? "bg-blue-600/20 text-blue-50 border border-blue-500/30 rounded-2xl rounded-tr-sm"
+                      : "bg-purple-600/20 text-purple-50 border border-purple-500/30 rounded-2xl rounded-tl-sm"
+                  )}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+            {isSending && (
+              <div className="flex items-start gap-2 animate-pulse">
+                <div className="bg-purple-600/10 p-3 rounded-2xl rounded-tl-sm border border-purple-500/20">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-purple-400" />
+                    <div className="w-2 h-2 rounded-full bg-purple-400 animation-delay-200" />
+                    <div className="w-2 h-2 rounded-full bg-purple-400 animation-delay-400" />
                   </div>
                 </div>
-              ))}
-              {isSending && <div className="text-xs text-white/40 italic">Thinking...</div>}
-            </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -673,7 +694,7 @@ export default function VoiceInterface() {
           The overlay above serves that purpose cleanly.
       */}
 
-    </div>
+    </div >
   );
 }
 
