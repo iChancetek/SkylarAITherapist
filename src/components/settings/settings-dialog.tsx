@@ -238,9 +238,7 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
 
 // Sub-components
 
-
 import { ScrollArea } from '@/components/ui/scroll-area';
-
 
 function HistoryView({ userId }: { userId: string | undefined }) {
     const [memories, setMemories] = useState<SessionMemory[]>([]);
@@ -252,10 +250,12 @@ function HistoryView({ userId }: { userId: string | undefined }) {
         setLoading(true);
         getAllUserMemories(userId)
             .then(m => {
-                setMemories(m);
+                // Ensure m is an array
+                setMemories(Array.isArray(m) ? m : []);
             })
             .catch(err => {
                 console.error("Failed to load memories", err);
+                setMemories([]); // Fallback to empty array
             })
             .finally(() => {
                 setLoading(false);
@@ -268,12 +268,11 @@ function HistoryView({ userId }: { userId: string | undefined }) {
             if (typeof ts === 'string') return new Date(ts).toLocaleDateString();
             if (ts.toDate && typeof ts.toDate === 'function') return ts.toDate().toLocaleDateString();
             if (ts instanceof Date) return ts.toLocaleDateString();
-            // Fallback for seconds/nanoseconds object from Firestore if not automatically converted
             if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleDateString();
             return 'Unknown Date';
         } catch (e) {
             console.error("Date formatting error", e);
-            return 'Error';
+            return 'Invalid Date';
         }
     };
 
@@ -295,11 +294,11 @@ function HistoryView({ userId }: { userId: string | undefined }) {
                     <p className="text-sm text-white/50 mb-4">{formatDate(selectedMemory.timestamp)}</p>
                     <ScrollArea className="h-[400px]">
                         <div className="space-y-4 pr-4">
-                            {selectedMemory.keyInsights.length > 0 && (
+                            {selectedMemory.keyInsights && Array.isArray(selectedMemory.keyInsights) && selectedMemory.keyInsights.length > 0 && (
                                 <div className="mb-6">
                                     <h4 className="text-sm font-semibold text-purple-300 mb-2">Key Insights</h4>
                                     <ul className="list-disc list-inside text-sm text-white/80 space-y-1">
-                                        {selectedMemory.keyInsights.map((k, i) => <li key={i}>{k}</li>)}
+                                        {selectedMemory.keyInsights.map((k, i) => <li key={i}>{k || "Insight"}</li>)}
                                     </ul>
                                 </div>
                             )}
@@ -307,7 +306,6 @@ function HistoryView({ userId }: { userId: string | undefined }) {
                             <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center">
                                 <p className="text-purple-200 mb-3">Want to continue this conversation?</p>
                                 <Button className="bg-purple-600 hover:bg-purple-500 text-white border-0 w-full" onClick={() => {
-                                    // Todo: Implement resume logic via callback
                                     alert("Resume feature coming in next step!");
                                 }}>
                                     Resume Session
@@ -330,7 +328,7 @@ function HistoryView({ userId }: { userId: string | undefined }) {
             )}
             {memories.map(m => (
                 <button
-                    key={m.sessionId}
+                    key={m?.sessionId || Math.random().toString()} // Fallback key
                     onClick={() => setSelectedMemory(m)}
                     className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 transition-all text-left group"
                 >
@@ -340,13 +338,13 @@ function HistoryView({ userId }: { userId: string | undefined }) {
                         </div>
                         <div>
                             <p className="font-medium text-white group-hover:text-purple-300 transition-colors line-clamp-1">
-                                {m.keyInsights[0] || "Therapy Session"}
+                                {(m?.keyInsights && Array.isArray(m.keyInsights) && m.keyInsights[0]) ? m.keyInsights[0] : "Therapy Session"}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-white/40">
                                 <Calendar className="w-3 h-3" />
-                                <span>{formatDate(m.timestamp)}</span>
+                                <span>{formatDate(m?.timestamp)}</span>
                                 <span>•</span>
-                                <span>{Math.ceil(m.duration / 60)} mins</span>
+                                <span>{m?.duration ? Math.ceil(m.duration / 60) : 0} mins</span>
                             </div>
                         </div>
                     </div>
