@@ -80,12 +80,12 @@ ${memoryContext}`;
     turnCount++;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o", // Ensuring reliable access
+      model: "gpt-5.2", // Ensuring reliable access
       messages: messages,
       tools: tools,
       tool_choice: "auto",
       temperature: 0.8, // Perfect for natural "vibe"
-      max_tokens: 400, // Increased for deeper thoughts
+      max_completion_tokens: 400, // Increased for deeper thoughts
     });
 
     const choice = completion.choices[0];

@@ -95,10 +95,12 @@ export default function VoiceInterface() {
 
   const isHydrated = isSessionStartedHydrated && isChatHistoryHydrated && isSessionStateHydrated;
 
+  const [isTextMode, setIsTextMode] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { toast } = useToast();
 
@@ -282,7 +284,6 @@ export default function VoiceInterface() {
         language, // Use preference language
         wasInterrupted: interrupted,
         interruptedDuring: interrupted ? currentResponse : undefined,
-        agentId: currentAgent,
         agentId: currentAgent,
         userId: user?.uid
       });

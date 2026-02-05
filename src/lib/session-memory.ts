@@ -9,6 +9,7 @@ export interface SessionMemory {
     emotionalPatterns: string[];
     duration: number;
     keyInsights: string[];
+    privacyLevel?: string;
     transcript: { speaker: string; text: string; timestamp: number }[];
 }
 
