@@ -5,7 +5,8 @@
 
 import { getOpenAIClient } from '@/lib/openai';
 import type { iSkylarInput, iSkylarOutput } from '@/ai/schema/ai-therapy';
-import { SYSTEM_PROMPTS, AgentId } from '@/ai/personas';
+import type { AgentId } from '@/ai/agent-config';
+import { SYSTEM_PROMPTS } from '@/ai/agent-prompts';
 import { TAVILY_TOOL_DEFINITION, performTavilySearch } from '@/ai/tools/tavily';
 
 import { getAllUserMemories } from '@/lib/session-memory';

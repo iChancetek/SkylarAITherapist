@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AGENTS, AgentId } from "@/ai/personas";
+import { AGENTS, AgentId } from "@/ai/agent-config";
 import { cn } from "@/lib/utils";
 import { Brain, Sparkles, User, Heart, Zap, Coffee } from "lucide-react";
 

@@ -18,7 +18,7 @@ import { usePersistedState } from "@/hooks/use-persisted-state";
 
 import { AgentSidebar } from "@/components/agent-sidebar";
 import { UserMenu } from "@/components/user-menu";
-import { AgentId, AGENTS } from "@/ai/personas";
+import { AgentId, AGENTS } from "@/ai/agent-config";
 
 // --- Type Definitions for Web Speech API & Legacy Audio Context ---
 
