@@ -60,7 +60,7 @@ export default function LandingPage() {
                             playsInline
                             className="h-full w-full object-cover"
                         >
-                            <source src="/video.MP4" type="video/mp4" />
+                            <source src="/background-video.mp4" type="video/mp4" />
                         </video>
                         {/* Dark gradient overlay */}
                         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
