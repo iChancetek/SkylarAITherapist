@@ -4,10 +4,21 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Heart, Shield, Sparkles, Mic, Clock } from "lucide-react";
+import { Brain, Heart, Shield, Sparkles, Mic, Clock, Volume2, VolumeX } from "lucide-react";
 import { Footer } from "@/components/footer";
+import { useRef, useState } from "react";
 
 export default function LandingPage() {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isMuted, setIsMuted] = useState(true);
+
+    const toggleMute = () => {
+        if (videoRef.current) {
+            videoRef.current.muted = !videoRef.current.muted;
+            setIsMuted(!isMuted);
+        }
+    };
+
     return (
         <div className="flex min-h-screen flex-col bg-background">
             {/* Navigation */}
@@ -40,10 +51,33 @@ export default function LandingPage() {
                 {/* Hero Section */}
                 <section className="relative overflow-hidden py-20 md:py-32 lg:py-40">
                     {/* Background Elements */}
-                    <div className="absolute inset-0 z-0 opacity-30">
-                        <div className="absolute -top-[20%] -left-[10%] h-[500px] w-[500px] rounded-full bg-purple-500/20 blur-[100px]" />
-                        <div className="absolute top-[40%] -right-[10%] h-[400px] w-[400px] rounded-full bg-blue-500/20 blur-[100px]" />
+                    <div className="absolute inset-0 z-0">
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="h-full w-full object-cover"
+                        >
+                            <source src="/video.MP4" type="video/mp4" />
+                        </video>
+                        {/* Dark gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
                     </div>
+
+                    {/* Audio Toggle Button */}
+                    <button
+                        onClick={toggleMute}
+                        className="absolute bottom-8 right-8 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all shadow-lg"
+                        aria-label={isMuted ? "Unmute video" : "Mute video"}
+                    >
+                        {isMuted ? (
+                            <VolumeX className="h-5 w-5 text-white" />
+                        ) : (
+                            <Volume2 className="h-5 w-5 text-white" />
+                        )}
+                    </button>
 
                     <div className="container relative z-10 mx-auto px-4 text-center md:px-6">
                         <div className="mx-auto max-w-3xl space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
