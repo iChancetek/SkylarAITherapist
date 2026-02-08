@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/lib/auth';
 import { PT_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
-import InstallPWA from '@/components/install-pwa';
+// import InstallPWA from '@/components/install-pwa'; // Removed
 import AuthGuard from '@/components/auth/auth-guard';
 import { UserPreferencesProvider } from '@/lib/user-preferences';
 
@@ -57,7 +57,7 @@ export default function RootLayout({
                 {children}
               </AuthGuard>
               <Toaster />
-              <InstallPWA />
+              {/* <InstallPWA /> Removed */}
             </UserPreferencesProvider>
           </AuthProvider>
         </ThemeProvider>
