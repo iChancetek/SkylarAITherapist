@@ -44,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${ptSans.className} antialiased`}>
+      <body className={`${ptSans.className} antialiased`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -65,3 +65,4 @@ export default function RootLayout({
     </html>
   );
 }
+// Force rebuild: 2026-02-09

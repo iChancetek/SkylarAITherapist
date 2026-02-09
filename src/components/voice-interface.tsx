@@ -22,6 +22,18 @@ import { AgentId, AGENTS } from "@/ai/agent-config";
 
 // --- Type Definitions for Web Speech API & Legacy Audio Context ---
 
+// Helper to get icon for speaker, derived at render time
+const getSpeakerIcon = (speaker: string, id: string) => {
+  if (id.includes('safety')) return AlertTriangle;
+  if (speaker === 'user') return User;
+
+  // Try to match agent name
+  const agentId = Object.keys(AGENTS).find(key => AGENTS[key as AgentId].name === speaker);
+  if (agentId) return AGENT_ICONS[agentId];
+
+  return Brain; // Default
+};
+
 interface SpeechRecognitionErrorEvent extends Event {
   error: string;
   message: string;
@@ -67,7 +79,7 @@ interface ChatMessage {
   id: string;
   speaker: "user" | "system" | string;
   text: string;
-  icon?: React.ElementType;
+  // icon removed to prevent DataCloneError
 }
 
 export default function VoiceInterface() {
@@ -243,11 +255,10 @@ export default function VoiceInterface() {
 
       setSessionState(textResponse.updatedSessionState);
 
-      const message: ChatMessage = {
+      const message: Omit<ChatMessage, 'icon'> = {
         id: `${textResponse.isSafetyResponse ? 'safety' : currentAgent}-${Date.now()}`,
-        speaker: textResponse.isSafetyResponse ? "system" : AGENTS[currentAgent].name as any,
+        speaker: textResponse.isSafetyResponse ? "system" : AGENTS[currentAgent].name,
         text: textResponse.responseText,
-        icon: textResponse.isSafetyResponse ? AlertTriangle : Brain
       };
       setChatHistory(prev => [...prev, message]);
 
@@ -259,14 +270,14 @@ export default function VoiceInterface() {
       console.error("Error during text-only fallback:", fallbackError);
       toast({ title: "AI Error", description: "Could not get a text response from iSkylar.", variant: "destructive" });
     }
-  }, [sessionState, toast, language, handleSessionEnd]);
+  }, [sessionState, toast, language, handleSessionEnd, currentAgent, setChatHistory, user]);
 
   const handleSendMessage = useCallback(async (userInput: string, interrupted: boolean = false) => {
     const finalUserInput = userInput.trim();
     if (!finalUserInput || !sessionStarted) return;
 
     setIsSending(true);
-    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput, icon: User }]);
+    setChatHistory(prev => [...prev, { id: `user-${Date.now()}`, speaker: "user", text: finalUserInput }]);
 
     // Pass preferences to AI for context awareness if needed? 
     // For now we just use language.
@@ -293,11 +304,10 @@ export default function VoiceInterface() {
       }
       setSessionState(response.updatedSessionState);
 
-      const message: ChatMessage = {
+      const message: Omit<ChatMessage, 'icon'> = {
         id: `${response.isSafetyResponse ? 'safety' : currentAgent}-${Date.now()}`,
-        speaker: response.isSafetyResponse ? "system" : AGENTS[currentAgent].name as any, // Cast to match ChatMessage string literal or update type
+        speaker: response.isSafetyResponse ? "system" : AGENTS[currentAgent].name,
         text: response.responseText,
-        icon: response.isSafetyResponse ? AlertTriangle : Brain
       };
       setChatHistory(prev => [...prev, message]);
       setCurrentResponse(response.responseText);
@@ -325,7 +335,7 @@ export default function VoiceInterface() {
     } finally {
       setIsSending(false);
     }
-  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language, currentResponse, user, currentAgent]);
+  }, [sessionState, toast, sessionStarted, playAudio, isVoiceQuotaReached, handleTextOnlyResponse, language, currentResponse, user, currentAgent, setChatHistory]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -431,7 +441,6 @@ export default function VoiceInterface() {
         id: `${currentAgent}-greeting-${Date.now()}`,
         speaker: AGENTS[currentAgent].name,
         text: response.responseText,
-        icon: Brain
       };
       setChatHistory([greetingMessage]);
 
@@ -535,7 +544,6 @@ export default function VoiceInterface() {
             id: `resumed-${i}-${t.timestamp}`,
             speaker: t.speaker === 'system' ? 'system' : t.speaker === 'user' ? 'user' : 'iSkylar',
             text: t.text,
-            icon: t.speaker === 'user' ? User : Brain
           }));
           setChatHistory(resumedHistory);
           setSessionStarted(true);
@@ -557,9 +565,43 @@ export default function VoiceInterface() {
       {/* Agent Sidebar (Left) */}
       <AgentSidebar
         currentAgent={currentAgent}
-        onAgentChange={(id) => {
+        onAgentChange={async (id) => {
+          if (id === currentAgent) return;
           setCurrentAgent(id);
           toast({ title: `Switched to ${AGENTS[id].name}`, description: AGENTS[id].role });
+
+          // RESET for new agent
+          clearChatHistory();
+          setSessionState(undefined); // Clear deep context so they start fresh-ish (but we keep long-term memory via backend)
+
+          if (sessionStarted) {
+            // Trigger immediate intro
+            setIsInitializing(true);
+            try {
+              const response = await getSpokenResponse({
+                userInput: "ISKYLAR_SESSION_START",
+                sessionState: undefined,
+                language,
+                agentId: id,
+                userId: user?.uid
+              });
+
+              if (!response.error) {
+                setSessionState(response.updatedSessionState);
+                const greetingMessage: ChatMessage = {
+                  id: `${id}-greeting-${Date.now()}`,
+                  speaker: AGENTS[id].name,
+                  text: response.responseText,
+                };
+                setChatHistory([greetingMessage]);
+                await playAudio(response.audioDataUri, false);
+              }
+            } catch (e) {
+              console.error("Agent switch error", e);
+            } finally {
+              setIsInitializing(false);
+            }
+          }
         }}
       />
 
@@ -666,33 +708,36 @@ export default function VoiceInterface() {
                 Conversation transcript will appear here...
               </div>
             )}
-            {chatHistory.map((msg) => (
-              <div key={msg.id} className={cn("flex flex-col gap-2", msg.speaker === 'user' ? "items-end" : "items-start")}>
-                <div className="flex items-center gap-2 opacity-60 text-xs uppercase font-bold tracking-wider text-white/70 px-1">
-                  {msg.speaker === 'iSkylar' ? (
-                    <>
-                      <Brain className="w-3 h-3 text-purple-400" />
-                      <span>iSkylar</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>You</span>
-                      <User className="w-3 h-3 text-blue-400" />
-                    </>
-                  )}
+            {chatHistory.map((msg) => {
+              const Icon = getSpeakerIcon(msg.speaker, msg.id);
+              return (
+                <div key={msg.id} className={cn("flex flex-col gap-2", msg.speaker === 'user' ? "items-end" : "items-start")}>
+                  <div className="flex items-center gap-2 opacity-60 text-xs uppercase font-bold tracking-wider text-white/70 px-1">
+                    {msg.speaker === 'iSkylar' || msg.speaker !== 'user' ? (
+                      <>
+                        <Icon className="w-3 h-3 text-purple-400" />
+                        <span>{msg.speaker}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>You</span>
+                        <Icon className="w-3 h-3 text-blue-400" />
+                      </>
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "px-5 py-3 text-base leading-relaxed max-w-[85%]",
+                      msg.speaker === 'user'
+                        ? "bg-blue-600/20 text-blue-50 border border-blue-500/30 rounded-2xl rounded-tr-sm"
+                        : "bg-purple-600/20 text-purple-50 border border-purple-500/30 rounded-2xl rounded-tl-sm"
+                    )}
+                  >
+                    {msg.text}
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    "px-5 py-3 text-base leading-relaxed max-w-[85%]",
-                    msg.speaker === 'user'
-                      ? "bg-blue-600/20 text-blue-50 border border-blue-500/30 rounded-2xl rounded-tr-sm"
-                      : "bg-purple-600/20 text-purple-50 border border-purple-500/30 rounded-2xl rounded-tl-sm"
-                  )}
-                >
-                  {msg.text}
-                </div>
-              </div>
-            ))}
+              )
+            })}
             {isSending && (
               <div className="flex items-start gap-2 animate-pulse">
                 <div className="bg-purple-600/10 p-3 rounded-2xl rounded-tl-sm border border-purple-500/20">

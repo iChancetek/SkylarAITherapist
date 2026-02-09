@@ -7,6 +7,7 @@ import { getOpenAIClient } from '@/lib/openai';
 import type { iSkylarInput, iSkylarOutput } from '@/ai/schema/ai-therapy';
 import type { AgentId } from '@/ai/agent-config';
 import { SYSTEM_PROMPTS } from '@/ai/agent-prompts';
+import { AGENTS } from '@/ai/agent-config';
 import { TAVILY_TOOL_DEFINITION, performTavilySearch } from '@/ai/tools/tavily';
 
 import { getAllUserMemories } from '@/lib/session-memory';
@@ -54,11 +55,14 @@ ${memoryContext}`;
   let userMessage = userInput;
 
   if (input.userInput === "ISKYLAR_SESSION_START") {
-    userMessage = "This is the start of the session. Give a warm, brief greeting (10-20 words) in the specified language.";
+    // AGENT INTRODUCTION RULE (MANDATORY)
+    userMessage = `[SYSTEM]: The user has just started a session/switched to you. 
+    State who you are naturally (e.g., "Hey, I'm ${AGENTS[agentId as AgentId].name}...").
+    Set the tone immediately based on your persona.
+    Keep it brief (10-20 words).`;
   } else if (wasInterrupted && interruptedDuring) {
-    userMessage = `[INTERRUPTION CONTEXT]: The user just interrupted you mid-response. You were saying: "${interruptedDuring}"
-  Acknowledge naturally: "Okay—" or "Yeah, go ahead" then respond to their new input.
-  
+    userMessage = `[INTERRUPTION]: The user interrupted you. You were saying: "${interruptedDuring}"
+  Recover seamlessly ("As I was saying..." or "Anyway...").
   User's new input: ${userInput}`;
   }
 
@@ -85,8 +89,8 @@ ${memoryContext}`;
       messages: messages,
       tools: tools,
       tool_choice: "auto",
-      temperature: 0.8, // Perfect for natural "vibe"
-      max_completion_tokens: 400, // Increased for deeper thoughts
+      temperature: 0.9, // Slightly higher for more "human" variance
+      max_completion_tokens: 500,
     });
 
     const choice = completion.choices[0];

@@ -96,49 +96,73 @@ export const UserPreferencesProvider = ({ children }: { children: React.ReactNod
     // Cloud Persistence (Firestore) - Sync on Mount / Auth Change
     useEffect(() => {
         if (!user) return;
-
         const userPrefsRef = doc(db, "users", user.uid, "settings", "preferences");
 
         // 1. Initial Fetch / Listener
         const unsubscribe = onSnapshot(userPrefsRef, (snapshot) => {
             if (snapshot.exists()) {
                 const cloudPrefs = snapshot.data() as UserPreferences;
-                // Merge cloud prefs with local, trusting cloud for critical settings but respecting local recent usage?
-                // For simplicity: Cloud is source of truth if exists.
+
                 setPreferences(prev => {
-                    // Only update if different to avoid loops? 
-                    // JSON.stringify comparison is heavy but safe for this size object.
+                    // Deep check to avoid unnecessary re-renders
                     if (JSON.stringify(prev) !== JSON.stringify(cloudPrefs)) {
-                        // Preserve dailyUsageMinutes relative to today if cloud is stale? 
-                        // Check date.
+                        // Special handling for dailyUsageMinutes to ensure we don't overwrite today's usage with old data
+                        // IF the cloud data has the SAME date, we trust the larger number (in case of multi-device usage)
+                        // IF cloud date is older, we ignore cloud usage stats.
+
                         const today = new Date().toISOString().split('T')[0];
+                        let finalUsage = cloudPrefs.dailyUsageMinutes;
+                        let finalDate = cloudPrefs.lastUsageDate;
+
                         if (cloudPrefs.lastUsageDate !== today) {
-                            return { ...cloudPrefs, dailyUsageMinutes: 0, lastUsageDate: today };
+                            // Cloud is stale on date, reset to today/0 or keep local if local is today
+                            if (prev.lastUsageDate === today) {
+                                finalDate = today;
+                                finalUsage = prev.dailyUsageMinutes;
+                            } else {
+                                finalDate = today;
+                                finalUsage = 0;
+                            }
+                        } else {
+                            // Cloud is today. Max logic if local is also today?
+                            if (prev.lastUsageDate === today) {
+                                finalUsage = Math.max(prev.dailyUsageMinutes || 0, cloudPrefs.dailyUsageMinutes || 0);
+                            }
                         }
-                        return cloudPrefs;
+
+                        return {
+                            ...cloudPrefs,
+                            dailyUsageMinutes: finalUsage,
+                            lastUsageDate: finalDate
+                        };
                     }
                     return prev;
                 });
             } else {
                 // If no cloud prefs, save current local (default) to cloud
-                setDoc(userPrefsRef, preferences, { merge: true });
+                setDoc(userPrefsRef, preferences, { merge: true })
+                    .catch(e => console.warn("Initial Cloud Save Failed (likely permissions):", e));
             }
+        }, (error) => {
+            console.error("Firestore Sync Error (Preferences):", error.code, error.message);
+            // Graceful fallback: We just stay on local state.
         });
 
         return () => unsubscribe();
-    }, [user, setPreferences]); // Intentionally not depending on 'preferences' here to avoid loop in listener
+    }, [user, setPreferences]); // Removed 'preferences' dependency to avoid loop
 
     // 2. Save to Cloud on Change (Debounced)
     useEffect(() => {
         if (!user || !isHydrated) return;
 
+        // Don't save if we just loaded from cloud (this is tricky, but the debounce helps)
         const userPrefsRef = doc(db, "users", user.uid, "settings", "preferences");
 
-        // Simple debounce using timeout
         const timer = setTimeout(() => {
+            // Only save if meaningful change? Firestore writes are cheap enough for settings.
             setDoc(userPrefsRef, preferences, { merge: true })
                 .catch(err => console.error("Failed to sync prefs to cloud:", err));
-        }, 1000); // 1-second debounce
+        }, 2000); // Increased debounce to 2s to allow multiple rapid toggles
 
         return () => clearTimeout(timer);
     }, [preferences, user, isHydrated]);
