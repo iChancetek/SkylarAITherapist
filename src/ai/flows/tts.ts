@@ -5,7 +5,7 @@
 
 import { getOpenAIClient } from '@/lib/openai';
 
-export async function textToSpeech(text: string, language: string = 'en'): Promise<{ audioDataUri: string }> {
+export async function textToSpeech(text: string, language: string = 'en', voiceId: string = 'nova'): Promise<{ audioDataUri: string }> {
   try {
     // Get client (fetches key if needed)
     const openai = await getOpenAIClient();
@@ -13,7 +13,7 @@ export async function textToSpeech(text: string, language: string = 'en'): Promi
     // Use OpenAI TTS API
     const mp3 = await openai.audio.speech.create({
       model: "tts-1", // or "tts-1-hd" for higher quality
-      voice: "nova", // warm, empathetic female voice
+      voice: voiceId as any, // Cast to any to avoid strict type issues with string vs enum
       input: text,
       speed: 0.95, // Slightly slower for therapeutic calmness
     });

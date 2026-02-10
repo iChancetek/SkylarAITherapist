@@ -31,6 +31,26 @@ server.tool(
     }
 );
 
+server.tool(
+    "search_flights",
+    {
+        origin: z.string(),
+        destination: z.string(),
+        date: z.string(),
+    },
+    async ({ origin, destination, date }) => {
+        console.log(`[TRAVEL] Searching flights from ${origin} to ${destination} on ${date}`);
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Flight Search Results for ${origin} to ${destination} on ${date}:\n1. Delta DL123: 09:00 AM - $450\n2. United UA456: 02:30 PM - $420\n3. American AA789: 06:15 PM - $480\n(Mock Data)`,
+                },
+            ],
+        };
+    }
+);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === "GET") {
         // SSE Connection

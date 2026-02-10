@@ -3,6 +3,7 @@ import { tavilySearchTool } from "./tavily";
 import { mcpManager } from "../mcp/mcp-client";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
+import { handoffToAgentTool } from "./handoff";
 
 // --- Production Helpers ---
 const serviceUnavailable = (serviceName: string) => {
@@ -59,7 +60,8 @@ export const getAggregatedTools = async () => {
         tavilySearchTool,    // Real (Tavily API)
         bookTravelTool,      // Fallback
         orderFoodTool,       // Fallback
-        manageCalendarTool   // Fallback
+        manageCalendarTool,   // Fallback
+        handoffToAgentTool   // Native Handoff
     ];
 
     // 2. Dynamic Tools (From connected MCP servers)
@@ -73,4 +75,4 @@ export const getAggregatedTools = async () => {
 };
 
 // Legacy array for immediate import (contains static only until init)
-export const ALL_TOOLS = [sendEmailTool, tavilySearchTool, bookTravelTool, orderFoodTool, manageCalendarTool];
+export const ALL_TOOLS = [sendEmailTool, tavilySearchTool, bookTravelTool, orderFoodTool, manageCalendarTool, handoffToAgentTool];

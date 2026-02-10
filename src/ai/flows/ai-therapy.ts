@@ -94,6 +94,33 @@ ${memoryContext}`;
       finalResponse = lastMessage.content.map((c: any) => c.text || '').join('');
     }
 
+    // --- HANDOFF DETECTION ---
+    // Check if the agent decided to call the handoff tool
+    let targetAgentId = undefined;
+
+    // We need to check previous messages for ToolCalls if the last message is just a confirmation
+    // OR check if the last message ITSELF is a tool call (if using a different graph structure).
+    // In standard LangGraph, the Agent (Assistant) emits a ToolCall, then the ToolNode runs, then Agent confirms.
+    // So we look for the most recent ToolMessage or check the Agent's ToolCall.
+
+    // Simplest check: Did the conversation execute "handoff_to_agent"?
+    const handoffToolCall = result.messages.find((m: any) =>
+      m.calls && m.calls[0]?.name === "handoff_to_agent"
+    ) || result.messages.find((m: any) =>
+      m.tool_calls && m.tool_calls.some((tc: any) => tc.name === "handoff_to_agent")
+    );
+
+    if (handoffToolCall) {
+      // Extract the target agent
+      // LangChain ToolCall structure: { name: string, args: any, id: string }
+      const toolCall = (handoffToolCall as any).tool_calls?.find((tc: any) => tc.name === "handoff_to_agent");
+      if (toolCall && toolCall.args && toolCall.args.targetAgentId) {
+        targetAgentId = toolCall.args.targetAgentId;
+        // Overwrite response to be brief if it's a handoff
+        if (!finalResponse) finalResponse = `Transferring you to ${targetAgentId}...`;
+      }
+    }
+
     // Determine if session should end
     const sessionShouldEnd = userInput.toLowerCase().includes('goodbye') ||
       userInput.toLowerCase().includes('end session') ||
@@ -105,6 +132,7 @@ ${memoryContext}`;
       iSkylarResponse: finalResponse || "I'm listening.",
       updatedSessionState,
       sessionShouldEnd,
+      targetAgentId, // Return the target agent ID
     };
 
   } catch (error) {

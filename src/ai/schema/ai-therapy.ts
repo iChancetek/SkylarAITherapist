@@ -27,5 +27,6 @@ export const iSkylarOutputSchema = z.object({
     { message: "updatedSessionState must be a valid JSON string." }
   ),
   sessionShouldEnd: z.boolean().optional().describe('Set to true if the conversation should end based on the user expressing a desire to stop.'),
+  targetAgentId: z.enum(['skylar', 'chancellor', 'sydney', 'hailey', 'chris']).optional().describe('The ID of the agent to transfer the session to, if a handoff occurred.'),
 });
 export type iSkylarOutput = z.infer<typeof iSkylarOutputSchema>;
