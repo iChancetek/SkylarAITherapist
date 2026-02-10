@@ -1,5 +1,7 @@
 
 import { getTavilyKey } from "@/lib/secrets";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
 
 /**
  * Definition for the Tavily Search tool to be used with OpenAI function calling.
@@ -74,3 +76,15 @@ export async function performTavilySearch(query: string): Promise<string> {
         return JSON.stringify({ error: "Failed to perform search." });
     }
 }
+
+
+export const tavilySearchTool = new DynamicStructuredTool({
+    name: "tavily_search",
+    description: "Search the web for real-time information, news, current events, or specific facts.",
+    schema: z.object({
+        query: z.string().describe("The search query, optimized for a search engine."),
+    }),
+    func: async ({ query }) => {
+        return await performTavilySearch(query);
+    },
+});

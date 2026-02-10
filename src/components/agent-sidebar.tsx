@@ -11,7 +11,7 @@ interface AgentSidebarProps {
 }
 
 // Map agent IDs to icons for a richer visual
-const AGENT_ICONS: Record<string, any> = {
+export const AGENT_ICONS: Record<string, any> = {
     skylar: Brain,
     chancellor: Zap,
     sydney: Sparkles,

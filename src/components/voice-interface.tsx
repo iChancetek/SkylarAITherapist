@@ -16,7 +16,7 @@ import { useAuthContext } from "@/lib/auth";
 import { saveSessionMemory, extractSessionSummary } from "@/lib/session-memory";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 
-import { AgentSidebar } from "@/components/agent-sidebar";
+import { AgentSidebar, AGENT_ICONS } from "@/components/agent-sidebar";
 import { UserMenu } from "@/components/user-menu";
 import { AgentId, AGENTS } from "@/ai/agent-config";
 

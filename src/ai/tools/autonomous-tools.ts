@@ -1,6 +1,8 @@
 import { sendEmailTool } from "./email";
 import { tavilySearchTool } from "./tavily";
 import { mcpManager } from "../mcp/mcp-client";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
 
 // --- Production Helpers ---
 const serviceUnavailable = (serviceName: string) => {
