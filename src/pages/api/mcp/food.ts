@@ -30,10 +30,8 @@ server.tool(
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === "GET") {
         console.log("[FOOD] Client connected via SSE");
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.setHeader("Connection", "keep-alive");
-        res.flushHeaders();
+        console.log("[FOOD] Client connected via SSE");
+
 
         const transport = new SSEServerTransport("/api/mcp/food/message", res);
         await server.connect(transport);

@@ -37,10 +37,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log("[TRAVEL] Client connected via SSE");
 
         // Set explicit SSE headers just in case SDK relies on them being set early
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.setHeader("Connection", "keep-alive");
-        res.flushHeaders();
+        // Set explicit SSE headers just in case SDK relies on them being set early
+        // res.setHeader("Content-Type", "text/event-stream");
+        // res.setHeader("Cache-Control", "no-cache");
+        // res.setHeader("Connection", "keep-alive");
+        // res.flushHeaders();
 
         const transport = new SSEServerTransport("/api/mcp/travel/message", res);
         await server.connect(transport);

@@ -35,6 +35,7 @@ export function SettingsDialog({ children, onResumeSession }: { children: React.
                 {children}
             </DialogTrigger>
             <DialogContent className="max-w-4xl bg-black/60 backdrop-blur-3xl border-white/10 text-white shadow-2xl rounded-2xl overflow-hidden h-[85vh] p-0 flex flex-col">
+                <DialogTitle className="sr-only">Settings</DialogTitle>
                 {/* Close / Save Bar (Mobile/Desktop friendly) */}
                 <div className="absolute top-4 right-4 z-50">
                     <Button
