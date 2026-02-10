@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User Preferences: Allow users to read/write their own preferences
+    match /users/{userId}/settings/preferences {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Default: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

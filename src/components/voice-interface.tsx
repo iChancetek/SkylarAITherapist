@@ -527,9 +527,9 @@ export default function VoiceInterface() {
 
   const getStatusText = () => {
     if (!sessionStarted && !isInitializing) return "Click 'Start Session' to begin.";
-    if (isInitializing) return "Contacting iSkylar...";
+    if (isInitializing) return `Connecting to ${AGENTS[currentAgent].name}...`;
     if (isSending) return "Thinking...";
-    if (isSpeaking) return "Speaking...";
+    if (isSpeaking) return `${AGENTS[currentAgent].name} is speaking...`;
     if (isListening) return "Listening...";
     return "Ready.";
   }

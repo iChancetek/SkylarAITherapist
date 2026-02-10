@@ -33,9 +33,6 @@ The conversation language is: ${language}. All your responses MUST be in this la
     try {
       const pastMemories = await getAllUserMemories(userId);
       if (pastMemories.length > 0) {
-        // Sort by date desc (already done by query) -> reverse for chronological order in prompt? 
-        // Or just list them. Reverse is better for narrative flow, but recent first is good for "current context".
-        // Let's do recent first but labeled clearly.
         const memoryContext = pastMemories.slice(0, 30).map(m => {
           const date = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleDateString() : 'Unknown Date';
           const insights = m.keyInsights.length > 0 ? m.keyInsights.join(' ') : 'No key insights recorded.';
@@ -66,80 +63,56 @@ ${memoryContext}`;
   User's new input: ${userInput}`;
   }
 
-  // 3. Prepare Messages
-  const messages: any[] = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: `Session State: ${sessionState}\n\nUser Input: ${userMessage}` }
-  ];
+  // 3. Execution via LangGraph
+  try {
+    const { appGraph } = await import('@/ai/langgraph/graph');
+    const { SystemMessage, HumanMessage } = await import('@langchain/core/messages');
 
-  const tools = [TAVILY_TOOL_DEFINITION];
+    const inputs = {
+      messages: [
+        new SystemMessage(systemPrompt),
+        new HumanMessage(`Session State: ${sessionState}\n\nUser Input: ${userMessage}`)
+      ],
+      sender: "user"
+    };
 
-  // 4. Call OpenAI (Handling Tool Execution Loop)
-  const openai = await getOpenAIClient();
-
-  let finalResponse = "I'm here.";
-  const MAX_TURNS = 5; // Prevent infinite loops
-  let turnCount = 0;
-
-  while (turnCount < MAX_TURNS) {
-    turnCount++;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.2", // Ensuring reliable access
-      messages: messages,
-      tools: tools,
-      tool_choice: "auto",
-      temperature: 0.9, // Slightly higher for more "human" variance
-      max_completion_tokens: 500,
-    });
-
-    const choice = completion.choices[0];
-    const message = choice.message;
-
-    // Add the model's response to history
-    messages.push(message);
-
-    // If there are tool calls, execute them
-    if (message.tool_calls && message.tool_calls.length > 0) {
-      for (const toolCall of message.tool_calls) {
-        if ((toolCall as any).function?.name === 'tavily_search') {
-          const args = JSON.parse((toolCall as any).function.arguments);
-          // Execute silent search
-          const searchResult = await performTavilySearch(args.query);
-
-          // Add tool result to conversation
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: searchResult
-          });
-        }
+    const config = {
+      configurable: {
+        thread_id: userId || "anonymous",
       }
-      // Loop back to get the model's response to the tool output
-      continue;
+    };
+
+    const result = await appGraph.invoke(inputs, config);
+    const lastMessage = result.messages[result.messages.length - 1];
+
+    // Explicitly handle string vs complex content
+    let finalResponse = "";
+    if (typeof lastMessage.content === 'string') {
+      finalResponse = lastMessage.content;
+    } else if (Array.isArray(lastMessage.content)) {
+      // Handle complex content (e.g. text + image_url blocks) if needed, usually just text for this app
+      finalResponse = lastMessage.content.map((c: any) => c.text || '').join('');
     }
 
-    // Valid text response
-    if (message.content) {
-      finalResponse = message.content;
-      break;
-    }
+    // Determine if session should end
+    const sessionShouldEnd = userInput.toLowerCase().includes('goodbye') ||
+      userInput.toLowerCase().includes('end session') ||
+      userInput.toLowerCase().includes("i'm done");
 
-    break; // Should not happen if no content and no tool calls
+    const updatedSessionState = sessionState;
+
+    return {
+      iSkylarResponse: finalResponse || "I'm listening.",
+      updatedSessionState,
+      sessionShouldEnd,
+    };
+
+  } catch (error) {
+    console.error("LangGraph Execution Error:", error);
+    return {
+      iSkylarResponse: "I'm having a bit of trouble thinking right now. Can you say that again?",
+      updatedSessionState: sessionState,
+      sessionShouldEnd: false,
+    };
   }
-
-
-  // Determine if session should end
-  const sessionShouldEnd = userInput.toLowerCase().includes('goodbye') ||
-    userInput.toLowerCase().includes('end session') ||
-    userInput.toLowerCase().includes("i'm done");
-
-  // Update session state (simplified)
-  const updatedSessionState = sessionState;
-
-  return {
-    iSkylarResponse: finalResponse,
-    updatedSessionState,
-    sessionShouldEnd,
-  };
 }

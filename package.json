@@ -10,6 +10,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "mcp:travel": "tsx src/mcp-servers/travel.ts",
+    "mcp:food": "tsx src/mcp-servers/food.ts",
+    "mcp:calendar": "tsx src/mcp-servers/calendar.ts",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -18,6 +21,10 @@
     "@genkit-ai/next": "^1.8.0",
     "@google-cloud/secret-manager": "^6.1.1",
     "@hookform/resolvers": "^4.1.3",
+    "@langchain/core": "^1.1.19",
+    "@langchain/langgraph": "^1.1.4",
+    "@langchain/openai": "^1.2.5",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-avatar": "^1.1.3",
@@ -43,10 +50,14 @@
     "@serwist/sw": "^9.5.0",
     "@tanstack-query-firebase/react": "^1.0.5",
     "@tanstack/react-query": "^5.66.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
+    "express": "^5.2.1",
     "firebase": "^11.8.1",
     "framer-motion": "^12.29.2",
     "genkit": "^1.8.0",
@@ -65,7 +76,7 @@
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "wav": "^1.0.2",
-    "zod": "^3.24.2"
+    "zod": "^3.25.76"
   },
   "overrides": {
     "react": "$react",

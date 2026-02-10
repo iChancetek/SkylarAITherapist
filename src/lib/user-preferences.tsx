@@ -144,8 +144,8 @@ export const UserPreferencesProvider = ({ children }: { children: React.ReactNod
                     .catch(e => console.warn("Initial Cloud Save Failed (likely permissions):", e));
             }
         }, (error) => {
-            console.error("Firestore Sync Error (Preferences):", error.code, error.message);
-            // Graceful fallback: We just stay on local state.
+            // Graceful fallback: We just stay on local state if permissions fail (common in dev/guest).
+            console.warn("Firestore Sync Warning (Preferences):", error.code);
         });
 
         return () => unsubscribe();
